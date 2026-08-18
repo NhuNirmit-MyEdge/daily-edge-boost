@@ -47,7 +47,7 @@ function Today() {
       <header>
         <p className="eyebrow">MyEdge</p>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight">Good morning</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{formatToday(entryDate)}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{mounted ? formatToday(entryDate) : "\u00a0"}</p>
       </header>
 
       <div className="mt-8 space-y-8">
