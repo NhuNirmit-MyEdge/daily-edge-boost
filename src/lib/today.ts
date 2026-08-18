@@ -147,3 +147,61 @@ export async function saveReflection(entryDate: string, answer: string) {
     );
   if (error) throw error;
 }
+
+export class EntryParseError extends Error {}
+
+export function parseEntryJSON(text: string, fallbackDate: string): DailyEntry {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch {
+    throw new EntryParseError("That doesn't look like valid JSON. Check for missing quotes, commas or brackets.");
+  }
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new EntryParseError("Expected a JSON object with keys like entry_date, news_brief and quiz.");
+  }
+  const o = raw as Record<string, unknown>;
+
+  const entry_date = typeof o["entry_date"] === "string" && /^\d{4}-\d{2}-\d{2}$/.test(o["entry_date"] as string)
+    ? (o["entry_date"] as string)
+    : fallbackDate;
+
+  if (o["entry_date"] !== undefined && entry_date !== o["entry_date"]) {
+    throw new EntryParseError("entry_date must be a date string in YYYY-MM-DD format.");
+  }
+  if (!Array.isArray(o["news_brief"])) {
+    throw new EntryParseError("news_brief is missing or is not a list of news items.");
+  }
+  if (!Array.isArray(o["quiz"])) {
+    throw new EntryParseError("quiz is missing or is not a list of questions.");
+  }
+  if (o["task"] !== undefined && o["task"] !== null && typeof o["task"] !== "string") {
+    throw new EntryParseError("task must be text.");
+  }
+
+  return {
+    entry_date,
+    news_brief: o["news_brief"] as NewsItem[],
+    expert_insight: (o["expert_insight"] as ExpertInsight | undefined) ?? null,
+    lesson: (o["lesson"] as Lesson | undefined) ?? null,
+    task: (o["task"] as string | undefined) ?? null,
+    quiz: o["quiz"] as QuizQuestion[],
+    market_note: (o["market_note"] as MarketNote | undefined) ?? null,
+  };
+}
+
+export async function upsertDailyEntry(entry: DailyEntry) {
+  const { error } = await supabase.from("daily_entries").upsert(
+    {
+      entry_date: entry.entry_date,
+      news_brief: entry.news_brief ?? [],
+      expert_insight: entry.expert_insight,
+      lesson: entry.lesson,
+      task: entry.task,
+      quiz: entry.quiz ?? [],
+      market_note: entry.market_note,
+    },
+    { onConflict: "entry_date" },
+  );
+  if (error) throw error;
+}

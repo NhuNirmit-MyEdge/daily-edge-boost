@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Sparkles } from "lucide-react";
@@ -6,6 +7,7 @@ import { ActionCard } from "@/components/today/ActionCard";
 import { InsightCard } from "@/components/today/InsightCard";
 import { LessonCard } from "@/components/today/LessonCard";
 import { NewsSection } from "@/components/today/NewsSection";
+import { PasteEntryCard } from "@/components/today/PasteEntryCard";
 import { QuizSection } from "@/components/today/QuizSection";
 import { fetchDailyEntry, fetchProfile, formatToday, todayISO } from "@/lib/today";
 
@@ -31,6 +33,8 @@ export const Route = createFileRoute("/")({
 
 function Today() {
   const entryDate = todayISO();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   const entryQuery = useQuery({
     queryKey: ["daily-entry", entryDate],
@@ -46,7 +50,7 @@ function Today() {
       <header>
         <p className="eyebrow">MyEdge</p>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight">Good morning</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{formatToday(entryDate)}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{mounted ? formatToday(entryDate) : "\u00a0"}</p>
       </header>
 
       <div className="mt-8 space-y-8">
@@ -62,10 +66,14 @@ function Today() {
             body="Something went wrong reaching your dashboard. Pull down or refresh to try again."
           />
         ) : !entry ? (
-          <EmptyState
-            title="Today's edge is still being prepared"
-            body="Check back soon — your briefing, lesson and quiz will appear here."
-          />
+          <>
+            <PasteEntryCard entryDate={entryDate} onSaved={() => entryQuery.refetch()} />
+            <EmptyState
+              title="Today's edge is still being prepared"
+              body="Check back soon — or paste today's content above to load it now."
+            />
+          </>
+
         ) : (
           <>
             <NewsSection items={entry.news_brief ?? []} />
