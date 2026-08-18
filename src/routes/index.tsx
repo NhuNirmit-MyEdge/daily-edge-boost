@@ -91,6 +91,7 @@ function Today() {
                 {entry.market_note.level ? ` · ${entry.market_note.level}` : ""}
               </p>
             ) : null}
+            <PasteEntryCard entryDate={entryDate} onSaved={() => entryQuery.refetch()} />
           </>
         )}
       </div>
