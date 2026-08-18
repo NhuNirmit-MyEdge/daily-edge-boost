@@ -32,6 +32,8 @@ export const Route = createFileRoute("/")({
 
 function Today() {
   const entryDate = todayISO();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   const entryQuery = useQuery({
     queryKey: ["daily-entry", entryDate],
