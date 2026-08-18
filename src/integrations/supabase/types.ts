@@ -14,7 +14,129 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      daily_entries: {
+        Row: {
+          created_at: string
+          entry_date: string
+          expert_insight: Json | null
+          lesson: Json | null
+          market_note: Json | null
+          news_brief: Json
+          quiz: Json
+          task: string | null
+        }
+        Insert: {
+          created_at?: string
+          entry_date: string
+          expert_insight?: Json | null
+          lesson?: Json | null
+          market_note?: Json | null
+          news_brief?: Json
+          quiz?: Json
+          task?: string | null
+        }
+        Update: {
+          created_at?: string
+          entry_date?: string
+          expert_insight?: Json | null
+          lesson?: Json | null
+          market_note?: Json | null
+          news_brief?: Json
+          quiz?: Json
+          task?: string | null
+        }
+        Relationships: []
+      }
+      lesson_reflections: {
+        Row: {
+          answer: string
+          entry_date: string
+          updated_at: string
+        }
+        Insert: {
+          answer?: string
+          entry_date: string
+          updated_at?: string
+        }
+        Update: {
+          answer?: string
+          entry_date?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      profile: {
+        Row: {
+          id: string
+          last_completed_date: string | null
+          streak_count: number
+          topics_covered: string[]
+        }
+        Insert: {
+          id?: string
+          last_completed_date?: string | null
+          streak_count?: number
+          topics_covered?: string[]
+        }
+        Update: {
+          id?: string
+          last_completed_date?: string | null
+          streak_count?: number
+          topics_covered?: string[]
+        }
+        Relationships: []
+      }
+      quiz_responses: {
+        Row: {
+          correct: boolean
+          created_at: string
+          entry_date: string
+          id: string
+          question_index: number
+          selected_index: number
+        }
+        Insert: {
+          correct?: boolean
+          created_at?: string
+          entry_date: string
+          id?: string
+          question_index: number
+          selected_index: number
+        }
+        Update: {
+          correct?: boolean
+          created_at?: string
+          entry_date?: string
+          id?: string
+          question_index?: number
+          selected_index?: number
+        }
+        Relationships: []
+      }
+      task_completions: {
+        Row: {
+          completed: boolean
+          completed_at: string | null
+          entry_date: string
+          id: string
+          note: string | null
+        }
+        Insert: {
+          completed?: boolean
+          completed_at?: string | null
+          entry_date: string
+          id?: string
+          note?: string | null
+        }
+        Update: {
+          completed?: boolean
+          completed_at?: string | null
+          entry_date?: string
+          id?: string
+          note?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
