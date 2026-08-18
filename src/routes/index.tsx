@@ -6,6 +6,7 @@ import { ActionCard } from "@/components/today/ActionCard";
 import { InsightCard } from "@/components/today/InsightCard";
 import { LessonCard } from "@/components/today/LessonCard";
 import { NewsSection } from "@/components/today/NewsSection";
+import { PasteEntryCard } from "@/components/today/PasteEntryCard";
 import { QuizSection } from "@/components/today/QuizSection";
 import { fetchDailyEntry, fetchProfile, formatToday, todayISO } from "@/lib/today";
 
