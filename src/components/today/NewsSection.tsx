@@ -1,7 +1,7 @@
 import type { NewsItem } from "@/lib/today";
 import { SectionHeading } from "./SectionHeading";
 
-function Field({ label, value }: { label: string; value?: string }) {
+function Field({ label, value }: { label: string; value: string | undefined }) {
   if (!value) return null;
   return (
     <div>
