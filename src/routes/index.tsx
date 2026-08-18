@@ -62,10 +62,14 @@ function Today() {
             body="Something went wrong reaching your dashboard. Pull down or refresh to try again."
           />
         ) : !entry ? (
-          <EmptyState
-            title="Today's edge is still being prepared"
-            body="Check back soon — your briefing, lesson and quiz will appear here."
-          />
+          <>
+            <PasteEntryCard entryDate={entryDate} onSaved={() => entryQuery.refetch()} />
+            <EmptyState
+              title="Today's edge is still being prepared"
+              body="Check back soon — or paste today's content above to load it now."
+            />
+          </>
+
         ) : (
           <>
             <NewsSection items={entry.news_brief ?? []} />
