@@ -52,7 +52,7 @@ export function todayISO(): string {
 
 export function formatToday(dateISO: string): string {
   const [y, m, d] = dateISO.split("-").map(Number);
-  return new Date(y, (m ?? 1) - 1, d).toLocaleDateString(undefined, {
+  return new Date(y ?? 1970, (m ?? 1) - 1, d ?? 1).toLocaleDateString(undefined, {
     weekday: "long",
     day: "numeric",
     month: "long",
