@@ -1,13 +1,8 @@
 import { useEffect, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Sparkles } from "lucide-react";
+import { BookOpen, ChevronRight, ClipboardPaste, HelpCircle, Newspaper, Target } from "lucide-react";
 
-import { ActionCard } from "@/components/today/ActionCard";
-import { LessonCard } from "@/components/today/LessonCard";
-import { NewsSection } from "@/components/today/NewsSection";
-import { PasteEntryCard } from "@/components/today/PasteEntryCard";
-import { QuizSection } from "@/components/today/QuizSection";
 import { fetchDailyEntry, fetchProfile, formatToday, todayISO } from "@/lib/today";
 
 export const Route = createFileRoute("/")({
@@ -22,13 +17,20 @@ export const Route = createFileRoute("/")({
       { property: "og:title", content: "MyEdge — Your daily intelligence briefing" },
       {
         property: "og:description",
-        content:
-          "News, a lesson, one action and a daily quiz — your edge, every morning.",
+        content: "News, a lesson, one action and a daily quiz — your edge, every morning.",
       },
     ],
   }),
   component: Today,
 });
+
+const SECTIONS = [
+  { to: "/news", label: "News", icon: Newspaper, blurb: "10 stories, 5 categories" },
+  { to: "/learn", label: "Let's Learn", icon: BookOpen, blurb: "Today's lesson" },
+  { to: "/action", label: "Today's Action", icon: Target, blurb: "One thing to do" },
+  { to: "/quiz", label: "Quiz", icon: HelpCircle, blurb: "5 questions" },
+  { to: "/load", label: "Load Today", icon: ClipboardPaste, blurb: "Paste today's content" },
+] as const;
 
 function Today() {
   const entryDate = todayISO();
@@ -41,7 +43,7 @@ function Today() {
   });
   const profileQuery = useQuery({ queryKey: ["profile"], queryFn: fetchProfile });
 
-  const entry = entryQuery.data;
+  const ready = Boolean(entryQuery.data);
   const streak = profileQuery.data?.streak_count ?? 0;
 
   return (
@@ -49,54 +51,40 @@ function Today() {
       <header>
         <p className="eyebrow">MyEdge</p>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight">Good morning</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{mounted ? formatToday(entryDate) : "\u00a0"}</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {mounted ? formatToday(entryDate) : "\u00a0"}
+        </p>
       </header>
 
-      <div className="mt-8 space-y-8">
-        {entryQuery.isLoading ? (
-          <div className="space-y-3">
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="h-28 animate-pulse rounded-2xl bg-card" />
-            ))}
-          </div>
-        ) : entryQuery.isError ? (
-          <EmptyState
-            title="We couldn't load today's edge"
-            body="Something went wrong reaching your dashboard. Pull down or refresh to try again."
-          />
-        ) : !entry ? (
-          <>
-            <PasteEntryCard entryDate={entryDate} onSaved={() => entryQuery.refetch()} />
-            <EmptyState
-              title="Today's edge is still being prepared"
-              body="Check back soon — or paste today's content above to load it now."
-            />
-          </>
+      <p className="mt-4 rounded-2xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+        {entryQuery.isLoading
+          ? "Loading today's edge…"
+          : ready
+            ? `Today's edge is ready · ${streak} day streak`
+            : "Today's edge is still being prepared — use Load Today to paste it in."}
+      </p>
 
-        ) : (
-          <>
-            <NewsSection items={entry.news_brief ?? []} />
-            {entry.lesson ? <LessonCard lesson={entry.lesson} entryDate={entryDate} /> : null}
-            {entry.task ? <ActionCard task={entry.task} entryDate={entryDate} /> : null}
-            <QuizSection
-              questions={entry.quiz ?? []}
-              entryDate={entryDate}
-              streak={streak}
-            />
-            <PasteEntryCard entryDate={entryDate} onSaved={() => entryQuery.refetch()} />
-          </>
-        )}
-      </div>
+      <nav className="mt-6 grid grid-cols-2 gap-3">
+        {SECTIONS.map((section) => (
+          <Link
+            key={section.to}
+            to={section.to}
+            className="group flex min-h-28 flex-col justify-between rounded-2xl border border-border bg-card p-4 text-left shadow-sm transition-colors hover:border-primary/40 hover:bg-secondary/50"
+          >
+            <section.icon className="h-5 w-5 text-primary" aria-hidden="true" />
+            <span>
+              <span className="flex items-center justify-between gap-2 text-sm font-semibold">
+                {section.label}
+                <ChevronRight
+                  className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+                  aria-hidden="true"
+                />
+              </span>
+              <span className="mt-0.5 block text-xs text-muted-foreground">{section.blurb}</span>
+            </span>
+          </Link>
+        ))}
+      </nav>
     </main>
-  );
-}
-
-function EmptyState({ title, body }: { title: string; body: string }) {
-  return (
-    <div className="rounded-2xl border border-border bg-card p-6 text-center">
-      <Sparkles className="mx-auto h-6 w-6 text-primary" aria-hidden="true" />
-      <h2 className="mt-3 text-base font-semibold">{title}</h2>
-      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{body}</p>
-    </div>
   );
 }
