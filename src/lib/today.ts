@@ -33,12 +33,22 @@ export type QuizQuestion = {
   explanation?: string;
 };
 
+export type Influencer = { name?: string; why_relevant?: string };
+
+export type VideoRecommendation = {
+  title?: string;
+  url?: string;
+  duration_note?: string;
+};
+
 export type DailyEntry = {
   entry_date: string;
   news_brief: NewsItem[] | null;
   lesson: Lesson | null;
   task: string | null;
   quiz: QuizQuestion[] | null;
+  influencers?: Influencer[] | null;
+  video_recommendation?: VideoRecommendation | null;
 };
 
 export function todayISO(): string {
