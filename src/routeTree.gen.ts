@@ -11,10 +11,14 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ActionRouteImport } from './routes/action'
+import { Route as CompaniesRouteImport } from './routes/companies'
+import { Route as EventsRouteImport } from './routes/events'
+import { Route as InfluencersRouteImport } from './routes/influencers'
 import { Route as LearnRouteImport } from './routes/learn'
 import { Route as LoadRouteImport } from './routes/load'
 import { Route as NewsRouteImport } from './routes/news'
 import { Route as QuizRouteImport } from './routes/quiz'
+import { Route as VideoRouteImport } from './routes/video'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -24,6 +28,21 @@ const IndexRoute = IndexRouteImport.update({
 const ActionRoute = ActionRouteImport.update({
   id: '/action',
   path: '/action',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CompaniesRoute = CompaniesRouteImport.update({
+  id: '/companies',
+  path: '/companies',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EventsRoute = EventsRouteImport.update({
+  id: '/events',
+  path: '/events',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InfluencersRoute = InfluencersRouteImport.update({
+  id: '/influencers',
+  path: '/influencers',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LearnRoute = LearnRouteImport.update({
@@ -46,47 +65,99 @@ const QuizRoute = QuizRouteImport.update({
   path: '/quiz',
   getParentRoute: () => rootRouteImport,
 } as any)
+const VideoRoute = VideoRouteImport.update({
+  id: '/video',
+  path: '/video',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/action': typeof ActionRoute
+  '/companies': typeof CompaniesRoute
+  '/events': typeof EventsRoute
+  '/influencers': typeof InfluencersRoute
   '/learn': typeof LearnRoute
   '/load': typeof LoadRoute
   '/news': typeof NewsRoute
   '/quiz': typeof QuizRoute
+  '/video': typeof VideoRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/action': typeof ActionRoute
+  '/companies': typeof CompaniesRoute
+  '/events': typeof EventsRoute
+  '/influencers': typeof InfluencersRoute
   '/learn': typeof LearnRoute
   '/load': typeof LoadRoute
   '/news': typeof NewsRoute
   '/quiz': typeof QuizRoute
+  '/video': typeof VideoRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/action': typeof ActionRoute
+  '/companies': typeof CompaniesRoute
+  '/events': typeof EventsRoute
+  '/influencers': typeof InfluencersRoute
   '/learn': typeof LearnRoute
   '/load': typeof LoadRoute
   '/news': typeof NewsRoute
   '/quiz': typeof QuizRoute
+  '/video': typeof VideoRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/action' | '/learn' | '/load' | '/news' | '/quiz'
+  fullPaths:
+    | '/'
+    | '/action'
+    | '/companies'
+    | '/events'
+    | '/influencers'
+    | '/learn'
+    | '/load'
+    | '/news'
+    | '/quiz'
+    | '/video'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/action' | '/learn' | '/load' | '/news' | '/quiz'
-  id: '__root__' | '/' | '/action' | '/learn' | '/load' | '/news' | '/quiz'
+  to:
+    | '/'
+    | '/action'
+    | '/companies'
+    | '/events'
+    | '/influencers'
+    | '/learn'
+    | '/load'
+    | '/news'
+    | '/quiz'
+    | '/video'
+  id:
+    | '__root__'
+    | '/'
+    | '/action'
+    | '/companies'
+    | '/events'
+    | '/influencers'
+    | '/learn'
+    | '/load'
+    | '/news'
+    | '/quiz'
+    | '/video'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ActionRoute: typeof ActionRoute
+  CompaniesRoute: typeof CompaniesRoute
+  EventsRoute: typeof EventsRoute
+  InfluencersRoute: typeof InfluencersRoute
   LearnRoute: typeof LearnRoute
   LoadRoute: typeof LoadRoute
   NewsRoute: typeof NewsRoute
   QuizRoute: typeof QuizRoute
+  VideoRoute: typeof VideoRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -103,6 +174,27 @@ declare module '@tanstack/react-router' {
       path: '/action'
       fullPath: '/action'
       preLoaderRoute: typeof ActionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/companies': {
+      id: '/companies'
+      path: '/companies'
+      fullPath: '/companies'
+      preLoaderRoute: typeof CompaniesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/events': {
+      id: '/events'
+      path: '/events'
+      fullPath: '/events'
+      preLoaderRoute: typeof EventsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/influencers': {
+      id: '/influencers'
+      path: '/influencers'
+      fullPath: '/influencers'
+      preLoaderRoute: typeof InfluencersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/learn': {
@@ -133,16 +225,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof QuizRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/video': {
+      id: '/video'
+      path: '/video'
+      fullPath: '/video'
+      preLoaderRoute: typeof VideoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ActionRoute: ActionRoute,
+  CompaniesRoute: CompaniesRoute,
+  EventsRoute: EventsRoute,
+  InfluencersRoute: InfluencersRoute,
   LearnRoute: LearnRoute,
   LoadRoute: LoadRoute,
   NewsRoute: NewsRoute,
   QuizRoute: QuizRoute,
+  VideoRoute: VideoRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

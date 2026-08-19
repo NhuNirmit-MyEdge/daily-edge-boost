@@ -14,30 +14,122 @@ export type Database = {
   }
   public: {
     Tables: {
+      companies: {
+        Row: {
+          date_added: string
+          id: string
+          name: string
+        }
+        Insert: {
+          date_added?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          date_added?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      company_updates: {
+        Row: {
+          company_id: string
+          created_at: string
+          entry_date: string
+          headline: string
+          id: string
+          source_url: string | null
+          summary: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          entry_date?: string
+          headline: string
+          id?: string
+          source_url?: string | null
+          summary?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          entry_date?: string
+          headline?: string
+          id?: string
+          source_url?: string | null
+          summary?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_updates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       daily_entries: {
         Row: {
           created_at: string
           entry_date: string
+          influencers: Json
           lesson: Json | null
           news_brief: Json
           quiz: Json
           task: string | null
+          video_recommendation: Json | null
         }
         Insert: {
           created_at?: string
           entry_date: string
+          influencers?: Json
           lesson?: Json | null
           news_brief?: Json
           quiz?: Json
           task?: string | null
+          video_recommendation?: Json | null
         }
         Update: {
           created_at?: string
           entry_date?: string
+          influencers?: Json
           lesson?: Json | null
           news_brief?: Json
           quiz?: Json
           task?: string | null
+          video_recommendation?: Json | null
+        }
+        Relationships: []
+      }
+      events: {
+        Row: {
+          created_at: string
+          end_date: string | null
+          id: string
+          location: string | null
+          name: string
+          relevance_note: string | null
+          start_date: string | null
+        }
+        Insert: {
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          location?: string | null
+          name: string
+          relevance_note?: string | null
+          start_date?: string | null
+        }
+        Update: {
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          location?: string | null
+          name?: string
+          relevance_note?: string | null
+          start_date?: string | null
         }
         Relationships: []
       }
