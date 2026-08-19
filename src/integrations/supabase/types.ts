@@ -18,9 +18,7 @@ export type Database = {
         Row: {
           created_at: string
           entry_date: string
-          expert_insight: Json | null
           lesson: Json | null
-          market_note: Json | null
           news_brief: Json
           quiz: Json
           task: string | null
@@ -28,9 +26,7 @@ export type Database = {
         Insert: {
           created_at?: string
           entry_date: string
-          expert_insight?: Json | null
           lesson?: Json | null
-          market_note?: Json | null
           news_brief?: Json
           quiz?: Json
           task?: string | null
@@ -38,9 +34,7 @@ export type Database = {
         Update: {
           created_at?: string
           entry_date?: string
-          expert_insight?: Json | null
           lesson?: Json | null
-          market_note?: Json | null
           news_brief?: Json
           quiz?: Json
           task?: string | null
