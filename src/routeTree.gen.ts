@@ -10,12 +10,18 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ActionRouteImport } from './routes/action'
 import { Route as LearnRouteImport } from './routes/learn'
 import { Route as NewsRouteImport } from './routes/news'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ActionRoute = ActionRouteImport.update({
+  id: '/action',
+  path: '/action',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LearnRoute = LearnRouteImport.update({
@@ -31,30 +37,34 @@ const NewsRoute = NewsRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/action': typeof ActionRoute
   '/learn': typeof LearnRoute
   '/news': typeof NewsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/action': typeof ActionRoute
   '/learn': typeof LearnRoute
   '/news': typeof NewsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/action': typeof ActionRoute
   '/learn': typeof LearnRoute
   '/news': typeof NewsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/learn' | '/news'
+  fullPaths: '/' | '/action' | '/learn' | '/news'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/learn' | '/news'
-  id: '__root__' | '/' | '/learn' | '/news'
+  to: '/' | '/action' | '/learn' | '/news'
+  id: '__root__' | '/' | '/action' | '/learn' | '/news'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ActionRoute: typeof ActionRoute
   LearnRoute: typeof LearnRoute
   NewsRoute: typeof NewsRoute
 }
@@ -66,6 +76,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/action': {
+      id: '/action'
+      path: '/action'
+      fullPath: '/action'
+      preLoaderRoute: typeof ActionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/learn': {
@@ -87,6 +104,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ActionRoute: ActionRoute,
   LearnRoute: LearnRoute,
   NewsRoute: NewsRoute,
 }
