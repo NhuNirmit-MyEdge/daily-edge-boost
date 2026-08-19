@@ -1,15 +1,16 @@
 import { useEffect, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { Lesson } from "@/lib/today";
 import { fetchReflection, saveReflection } from "@/lib/today";
-import { SectionHeading } from "./SectionHeading";
 
 export function LessonCard({ lesson, entryDate }: { lesson: Lesson; entryDate: string }) {
   const [answer, setAnswer] = useState("");
   const [saving, setSaving] = useState(false);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -38,36 +39,52 @@ export function LessonCard({ lesson, entryDate }: { lesson: Lesson; entryDate: s
   const meta = [lesson.module, lesson.day].filter(Boolean).join(" · ");
 
   return (
-    <section>
-      <SectionHeading label="Let's learn" hint={meta || undefined} />
-      <article className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-        <h3 className="text-base font-semibold leading-snug">{lesson.title}</h3>
-        {lesson.content ? (
-          <p className="mt-2 text-sm leading-relaxed text-foreground/85">{lesson.content}</p>
-        ) : null}
+    <article className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full items-start gap-3 p-4 text-left"
+      >
+        <span className="flex-1">
+          {meta ? <span className="eyebrow block">{meta}</span> : null}
+          <span className="mt-1 block text-sm font-semibold leading-snug">{lesson.title}</span>
+        </span>
+        <ChevronDown
+          className={`mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
+          aria-hidden="true"
+        />
+      </button>
 
-        <div className="mt-4 rounded-xl bg-secondary/60 p-3">
-          <label htmlFor="reflection" className="eyebrow">
-            Explain this in your own words
-          </label>
-          <Textarea
-            id="reflection"
-            value={answer}
-            onChange={(event) => setAnswer(event.target.value)}
-            rows={4}
-            placeholder="In my own words…"
-            className="mt-2 resize-none bg-background/60"
-          />
-          <Button
-            onClick={onSave}
-            disabled={saving || answer.trim().length === 0}
-            size="sm"
-            className="mt-3 w-full"
-          >
-            {saving ? "Saving…" : "Save answer"}
-          </Button>
+      {open ? (
+        <div className="border-t border-border px-4 py-4">
+          {lesson.content ? (
+            <p className="text-sm leading-relaxed text-foreground/85">{lesson.content}</p>
+          ) : null}
+
+          <div className="mt-4 rounded-xl bg-secondary/60 p-3">
+            <label htmlFor="reflection" className="eyebrow">
+              Explain this in your own words
+            </label>
+            <Textarea
+              id="reflection"
+              value={answer}
+              onChange={(event) => setAnswer(event.target.value)}
+              rows={4}
+              placeholder="In my own words…"
+              className="mt-2 resize-none bg-background/60"
+            />
+            <Button
+              onClick={onSave}
+              disabled={saving || answer.trim().length === 0}
+              size="sm"
+              className="mt-3 w-full"
+            >
+              {saving ? "Saving…" : "Save answer"}
+            </Button>
+          </div>
         </div>
-      </article>
-    </section>
+      ) : null}
+    </article>
   );
 }
