@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { QuizQuestion } from "@/lib/today";
-import { fetchQuizResponses, saveQuizResponse } from "@/lib/today";
+import { saveQuizResponse } from "@/lib/today";
 import { SectionHeading } from "./SectionHeading";
 
 type Answers = Record<number, { selected: number; correct: boolean }>;
@@ -22,26 +22,10 @@ export function QuizSection({
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Answers>({});
 
+  // Always start a fresh quiz: no option selected, no feedback revealed.
   useEffect(() => {
-    let active = true;
-    fetchQuizResponses(entryDate)
-      .then((rows) => {
-        if (!active || !rows.length) return;
-        const restored: Answers = {};
-        rows.forEach((row) => {
-          restored[row.question_index] = {
-            selected: row.selected_index,
-            correct: row.correct,
-          };
-        });
-        setAnswers(restored);
-        const next = questions.findIndex((_, i) => restored[i] === undefined);
-        setIndex(next === -1 ? questions.length : next);
-      })
-      .catch(() => undefined);
-    return () => {
-      active = false;
-    };
+    setAnswers({});
+    setIndex(0);
   }, [entryDate, questions]);
 
   if (!questions.length) return null;
