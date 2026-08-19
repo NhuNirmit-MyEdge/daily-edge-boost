@@ -1,18 +1,22 @@
 import { supabase } from "@/integrations/supabase/client";
 
+export const NEWS_CATEGORIES = [
+  "Healthcare",
+  "Technology",
+  "Business",
+  "Venture Capital",
+  "Global Affairs",
+] as const;
+
 export type NewsItem = {
+  category?: string;
   headline?: string;
   what_happened?: string;
   why_it_matters?: string;
   why_it_matters_to_me?: string;
+  why_it_matters_to_you?: string;
   what_to_watch_next?: string;
-};
-
-export type ExpertInsight = {
-  title?: string;
-  source?: string;
-  key_idea?: string;
-  application?: string;
+  watch_next?: string;
 };
 
 export type Lesson = {
@@ -29,19 +33,12 @@ export type QuizQuestion = {
   explanation?: string;
 };
 
-export type MarketNote = {
-  summary?: string;
-  level?: string;
-};
-
 export type DailyEntry = {
   entry_date: string;
   news_brief: NewsItem[] | null;
-  expert_insight: ExpertInsight | null;
   lesson: Lesson | null;
   task: string | null;
   quiz: QuizQuestion[] | null;
-  market_note: MarketNote | null;
 };
 
 export function todayISO(): string {
@@ -172,6 +169,15 @@ export function parseEntryJSON(text: string, fallbackDate: string): DailyEntry {
   if (!Array.isArray(o["news_brief"])) {
     throw new EntryParseError("news_brief is missing or is not a list of news items.");
   }
+  const news = o["news_brief"] as unknown[];
+  const badItem = news.findIndex(
+    (n) => !n || typeof n !== "object" || Array.isArray(n) || !(n as Record<string, unknown>)["headline"],
+  );
+  if (badItem !== -1) {
+    throw new EntryParseError(
+      `News story ${badItem + 1} is missing a headline or isn't a JSON object.`,
+    );
+  }
   if (!Array.isArray(o["quiz"])) {
     throw new EntryParseError("quiz is missing or is not a list of questions.");
   }
@@ -182,11 +188,9 @@ export function parseEntryJSON(text: string, fallbackDate: string): DailyEntry {
   return {
     entry_date,
     news_brief: o["news_brief"] as NewsItem[],
-    expert_insight: (o["expert_insight"] as ExpertInsight | undefined) ?? null,
     lesson: (o["lesson"] as Lesson | undefined) ?? null,
     task: (o["task"] as string | undefined) ?? null,
     quiz: o["quiz"] as QuizQuestion[],
-    market_note: (o["market_note"] as MarketNote | undefined) ?? null,
   };
 }
 
@@ -195,11 +199,9 @@ export async function upsertDailyEntry(entry: DailyEntry) {
     {
       entry_date: entry.entry_date,
       news_brief: entry.news_brief ?? [],
-      expert_insight: entry.expert_insight,
       lesson: entry.lesson,
       task: entry.task,
       quiz: entry.quiz ?? [],
-      market_note: entry.market_note,
     },
     { onConflict: "entry_date" },
   );

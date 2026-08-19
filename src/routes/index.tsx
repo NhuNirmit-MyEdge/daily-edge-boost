@@ -4,7 +4,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Sparkles } from "lucide-react";
 
 import { ActionCard } from "@/components/today/ActionCard";
-import { InsightCard } from "@/components/today/InsightCard";
 import { LessonCard } from "@/components/today/LessonCard";
 import { NewsSection } from "@/components/today/NewsSection";
 import { PasteEntryCard } from "@/components/today/PasteEntryCard";
@@ -18,13 +17,13 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "MyEdge is a personal daily dashboard: news that matters to you, an expert insight, a lesson, one action and a five-question quiz.",
+          "MyEdge is a personal daily dashboard: news that matters to you, a lesson, one action and a five-question quiz.",
       },
       { property: "og:title", content: "MyEdge — Your daily intelligence briefing" },
       {
         property: "og:description",
         content:
-          "News, an expert insight, a lesson, one action and a daily quiz — your edge, every morning.",
+          "News, a lesson, one action and a daily quiz — your edge, every morning.",
       },
     ],
   }),
@@ -77,7 +76,6 @@ function Today() {
         ) : (
           <>
             <NewsSection items={entry.news_brief ?? []} />
-            {entry.expert_insight ? <InsightCard insight={entry.expert_insight} /> : null}
             {entry.lesson ? <LessonCard lesson={entry.lesson} entryDate={entryDate} /> : null}
             {entry.task ? <ActionCard task={entry.task} entryDate={entryDate} /> : null}
             <QuizSection
@@ -85,12 +83,6 @@ function Today() {
               entryDate={entryDate}
               streak={streak}
             />
-            {entry.market_note?.summary ? (
-              <p className="rounded-2xl border border-border bg-card/60 p-4 text-xs leading-relaxed text-muted-foreground">
-                {entry.market_note.summary}
-                {entry.market_note.level ? ` · ${entry.market_note.level}` : ""}
-              </p>
-            ) : null}
             <PasteEntryCard entryDate={entryDate} onSaved={() => entryQuery.refetch()} />
           </>
         )}

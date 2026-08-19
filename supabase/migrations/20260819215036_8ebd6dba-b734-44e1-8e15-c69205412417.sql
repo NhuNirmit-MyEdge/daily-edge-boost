@@ -1,0 +1,1 @@
+ALTER TABLE public.daily_entries DROP COLUMN IF EXISTS expert_insight, DROP COLUMN IF EXISTS market_note;
