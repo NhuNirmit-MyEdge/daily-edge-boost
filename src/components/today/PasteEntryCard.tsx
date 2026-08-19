@@ -43,13 +43,18 @@ export function PasteEntryCard({
         <label htmlFor="paste-entry" className="text-sm font-medium">
           Paste today&apos;s MyEdge content
         </label>
+        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+          Expects: entry_date, news_brief (10 stories — 2 each from Healthcare, Technology,
+          Business, Venture Capital, Global Affairs, each with category, headline, what_happened,
+          why_it_matters, why_it_matters_to_you, watch_next), lesson, task, quiz.
+        </p>
         <textarea
           id="paste-entry"
           value={text}
           onChange={(e) => setText(e.target.value)}
           rows={8}
           spellCheck={false}
-          placeholder='{"entry_date":"2026-08-19","news_brief":[],"quiz":[]}'
+          placeholder={'{"entry_date":"2026-08-19","news_brief":[{"category":"Healthcare","headline":"…","what_happened":"…","why_it_matters":"…","why_it_matters_to_you":"…","watch_next":"…"}],"lesson":{},"task":"…","quiz":[]}'}
           className="mt-2 w-full rounded-xl border border-border bg-background p-3 font-mono text-xs leading-relaxed outline-none focus:ring-2 focus:ring-ring"
         />
         {error ? (

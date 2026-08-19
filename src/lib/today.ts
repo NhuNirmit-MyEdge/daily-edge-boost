@@ -169,6 +169,15 @@ export function parseEntryJSON(text: string, fallbackDate: string): DailyEntry {
   if (!Array.isArray(o["news_brief"])) {
     throw new EntryParseError("news_brief is missing or is not a list of news items.");
   }
+  const news = o["news_brief"] as unknown[];
+  const badItem = news.findIndex(
+    (n) => !n || typeof n !== "object" || Array.isArray(n) || !(n as Record<string, unknown>)["headline"],
+  );
+  if (badItem !== -1) {
+    throw new EntryParseError(
+      `News story ${badItem + 1} is missing a headline or isn't a JSON object.`,
+    );
+  }
   if (!Array.isArray(o["quiz"])) {
     throw new EntryParseError("quiz is missing or is not a list of questions.");
   }
