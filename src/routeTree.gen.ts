@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ActionRouteImport } from './routes/action'
 import { Route as LearnRouteImport } from './routes/learn'
 import { Route as NewsRouteImport } from './routes/news'
+import { Route as QuizRouteImport } from './routes/quiz'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -34,18 +35,25 @@ const NewsRoute = NewsRouteImport.update({
   path: '/news',
   getParentRoute: () => rootRouteImport,
 } as any)
+const QuizRoute = QuizRouteImport.update({
+  id: '/quiz',
+  path: '/quiz',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/action': typeof ActionRoute
   '/learn': typeof LearnRoute
   '/news': typeof NewsRoute
+  '/quiz': typeof QuizRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/action': typeof ActionRoute
   '/learn': typeof LearnRoute
   '/news': typeof NewsRoute
+  '/quiz': typeof QuizRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -53,13 +61,14 @@ export interface FileRoutesById {
   '/action': typeof ActionRoute
   '/learn': typeof LearnRoute
   '/news': typeof NewsRoute
+  '/quiz': typeof QuizRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/action' | '/learn' | '/news'
+  fullPaths: '/' | '/action' | '/learn' | '/news' | '/quiz'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/action' | '/learn' | '/news'
-  id: '__root__' | '/' | '/action' | '/learn' | '/news'
+  to: '/' | '/action' | '/learn' | '/news' | '/quiz'
+  id: '__root__' | '/' | '/action' | '/learn' | '/news' | '/quiz'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -67,6 +76,7 @@ export interface RootRouteChildren {
   ActionRoute: typeof ActionRoute
   LearnRoute: typeof LearnRoute
   NewsRoute: typeof NewsRoute
+  QuizRoute: typeof QuizRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -99,6 +109,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NewsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/quiz': {
+      id: '/quiz'
+      path: '/quiz'
+      fullPath: '/quiz'
+      preLoaderRoute: typeof QuizRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -107,6 +124,7 @@ const rootRouteChildren: RootRouteChildren = {
   ActionRoute: ActionRoute,
   LearnRoute: LearnRoute,
   NewsRoute: NewsRoute,
+  QuizRoute: QuizRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
