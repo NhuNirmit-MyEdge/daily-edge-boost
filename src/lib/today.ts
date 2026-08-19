@@ -201,7 +201,77 @@ export function parseEntryJSON(text: string, fallbackDate: string): DailyEntry {
     lesson: (o["lesson"] as Lesson | undefined) ?? null,
     task: (o["task"] as string | undefined) ?? null,
     quiz: o["quiz"] as QuizQuestion[],
+    influencers: Array.isArray(o["influencers"]) ? (o["influencers"] as Influencer[]) : [],
+    video_recommendation:
+      o["video_recommendation"] && typeof o["video_recommendation"] === "object" &&
+      !Array.isArray(o["video_recommendation"])
+        ? (o["video_recommendation"] as VideoRecommendation)
+        : null,
   };
+}
+
+export type PastedCompanyUpdate = {
+  company_name: string;
+  entry_date: string;
+  headline: string;
+  summary: string | null;
+  source_url: string | null;
+};
+
+export function parseCompanyUpdatesJSON(text: string, fallbackDate: string): PastedCompanyUpdate[] {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch {
+    return [];
+  }
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return [];
+  const list = (raw as Record<string, unknown>)["company_updates"];
+  if (!Array.isArray(list)) return [];
+  const out: PastedCompanyUpdate[] = [];
+  for (const item of list) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+    const o = item as Record<string, unknown>;
+    if (typeof o["company_name"] !== "string" || typeof o["headline"] !== "string") continue;
+    out.push({
+      company_name: o["company_name"],
+      entry_date:
+        typeof o["entry_date"] === "string" && /^\d{4}-\d{2}-\d{2}$/.test(o["entry_date"])
+          ? o["entry_date"]
+          : fallbackDate,
+      headline: o["headline"],
+      summary: typeof o["summary"] === "string" ? o["summary"] : null,
+      source_url: typeof o["source_url"] === "string" ? o["source_url"] : null,
+    });
+  }
+  return out;
+}
+
+/** Inserts updates for company names that match a tracked company (case-insensitive). Unknown names are skipped. */
+export async function applyCompanyUpdates(updates: PastedCompanyUpdate[]): Promise<number> {
+  if (updates.length === 0) return 0;
+  const { data, error } = await supabase.from("companies").select("id, name");
+  if (error) throw error;
+  const byName = new Map<string, string>(
+    (data ?? []).map((c: { id: string; name: string }) => [c.name.trim().toLowerCase(), c.id]),
+  );
+  const rows = updates
+    .map((u) => {
+      const id = byName.get(u.company_name.trim().toLowerCase());
+      if (!id) return null;
+      return {
+        company_id: id,
+        entry_date: u.entry_date,
+        headline: u.headline,
+        summary: u.summary,
+        source_url: u.source_url,
+      };
+    })
+    .filter((r): r is NonNullable<typeof r> => r !== null);
+  if (rows.length === 0) return 0;
+  const { error: insertError } = await supabase.from("company_updates").insert(rows);
+  if (insertError) throw insertError;
+  return rows.length;
 }
 
 export async function upsertDailyEntry(entry: DailyEntry) {
@@ -212,6 +282,8 @@ export async function upsertDailyEntry(entry: DailyEntry) {
       lesson: entry.lesson,
       task: entry.task,
       quiz: entry.quiz ?? [],
+      influencers: entry.influencers ?? [],
+      video_recommendation: entry.video_recommendation ?? null,
     },
     { onConflict: "entry_date" },
   );
