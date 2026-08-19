@@ -39,7 +39,7 @@ export function LessonCard({ lesson, entryDate }: { lesson: Lesson; entryDate: s
 
   return (
     <section>
-      <SectionHeading label="Today's lesson" hint={meta || undefined} />
+      <SectionHeading label="Let's learn" hint={meta || undefined} />
       <article className="rounded-2xl border border-border bg-card p-4 shadow-sm">
         <h3 className="text-base font-semibold leading-snug">{lesson.title}</h3>
         {lesson.content ? (
