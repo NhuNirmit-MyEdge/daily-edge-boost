@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ActionRouteImport } from './routes/action'
 import { Route as LearnRouteImport } from './routes/learn'
+import { Route as LoadRouteImport } from './routes/load'
 import { Route as NewsRouteImport } from './routes/news'
 import { Route as QuizRouteImport } from './routes/quiz'
 
@@ -30,6 +31,11 @@ const LearnRoute = LearnRouteImport.update({
   path: '/learn',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LoadRoute = LoadRouteImport.update({
+  id: '/load',
+  path: '/load',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const NewsRoute = NewsRouteImport.update({
   id: '/news',
   path: '/news',
@@ -45,6 +51,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/action': typeof ActionRoute
   '/learn': typeof LearnRoute
+  '/load': typeof LoadRoute
   '/news': typeof NewsRoute
   '/quiz': typeof QuizRoute
 }
@@ -52,6 +59,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/action': typeof ActionRoute
   '/learn': typeof LearnRoute
+  '/load': typeof LoadRoute
   '/news': typeof NewsRoute
   '/quiz': typeof QuizRoute
 }
@@ -60,21 +68,23 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/action': typeof ActionRoute
   '/learn': typeof LearnRoute
+  '/load': typeof LoadRoute
   '/news': typeof NewsRoute
   '/quiz': typeof QuizRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/action' | '/learn' | '/news' | '/quiz'
+  fullPaths: '/' | '/action' | '/learn' | '/load' | '/news' | '/quiz'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/action' | '/learn' | '/news' | '/quiz'
-  id: '__root__' | '/' | '/action' | '/learn' | '/news' | '/quiz'
+  to: '/' | '/action' | '/learn' | '/load' | '/news' | '/quiz'
+  id: '__root__' | '/' | '/action' | '/learn' | '/load' | '/news' | '/quiz'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ActionRoute: typeof ActionRoute
   LearnRoute: typeof LearnRoute
+  LoadRoute: typeof LoadRoute
   NewsRoute: typeof NewsRoute
   QuizRoute: typeof QuizRoute
 }
@@ -102,6 +112,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LearnRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/load': {
+      id: '/load'
+      path: '/load'
+      fullPath: '/load'
+      preLoaderRoute: typeof LoadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/news': {
       id: '/news'
       path: '/news'
@@ -123,6 +140,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ActionRoute: ActionRoute,
   LearnRoute: LearnRoute,
+  LoadRoute: LoadRoute,
   NewsRoute: NewsRoute,
   QuizRoute: QuizRoute,
 }
