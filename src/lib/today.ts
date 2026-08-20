@@ -11,6 +11,8 @@ export const NEWS_CATEGORIES = [
 export type NewsItem = {
   category?: string;
   headline?: string;
+  published_date?: string;
+  source?: string;
   what_happened?: string;
   why_it_matters?: string;
   why_it_matters_to_me?: string;
@@ -74,6 +76,24 @@ export async function fetchDailyEntry(entryDate: string) {
     .maybeSingle();
   if (error) throw error;
   return (data as DailyEntry | null) ?? null;
+}
+
+export async function fetchAllDailyEntries(): Promise<DailyEntry[]> {
+  const { data, error } = await supabase
+    .from("daily_entries")
+    .select("*")
+    .order("entry_date", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as DailyEntry[];
+}
+
+export function formatDateShort(dateISO: string): string {
+  const [y, m, d] = dateISO.split("-").map(Number);
+  return new Date(y ?? 1970, (m ?? 1) - 1, d ?? 1).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
 export async function fetchProfile() {
