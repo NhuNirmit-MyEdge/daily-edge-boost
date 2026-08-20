@@ -28,10 +28,21 @@ export function PasteEntryCard({
     try {
       const entry = parseEntryJSON(text, entryDate);
       await upsertDailyEntry(entry);
-      toast.success("Today's edge is loaded");
+      let applied = 0;
+      try {
+        applied = await applyCompanyUpdates(parseCompanyUpdatesJSON(text, entry.entry_date));
+      } catch {
+        applied = 0;
+      }
+      toast.success(
+        applied > 0
+          ? `Today's edge is loaded · ${applied} company update${applied === 1 ? "" : "s"}`
+          : "Today's edge is loaded",
+      );
       setText("");
       await onSaved();
     } catch (err) {
+
       if (err instanceof EntryParseError) {
         setError(err.message);
       } else {
