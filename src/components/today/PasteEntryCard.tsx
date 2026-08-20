@@ -63,8 +63,12 @@ export function PasteEntryCard({
         <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
           Expects: entry_date, news_brief (10 stories — 2 each from Healthcare, Technology,
           Business, Venture Capital, Global Affairs, each with category, headline, what_happened,
-          why_it_matters, why_it_matters_to_you, watch_next), lesson, task, quiz.
+          why_it_matters, why_it_matters_to_you, watch_next), lesson, task, quiz. Optional:
+          influencers (2 × name, why_relevant), video_recommendation (title, url, duration_note),
+          and company_updates (company_name, entry_date, headline, summary, source_url) — updates
+          for untracked companies are skipped.
         </p>
+
         <textarea
           id="paste-entry"
           value={text}
