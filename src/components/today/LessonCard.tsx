@@ -7,10 +7,18 @@ import { Textarea } from "@/components/ui/textarea";
 import type { Lesson } from "@/lib/today";
 import { fetchReflection, saveReflection } from "@/lib/today";
 
-export function LessonCard({ lesson, entryDate }: { lesson: Lesson; entryDate: string }) {
+export function LessonCard({
+  lesson,
+  entryDate,
+  defaultOpen = false,
+}: {
+  lesson: Lesson;
+  entryDate: string;
+  defaultOpen?: boolean;
+}) {
   const [answer, setAnswer] = useState("");
   const [saving, setSaving] = useState(false);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
 
   useEffect(() => {
     let active = true;
@@ -63,11 +71,11 @@ export function LessonCard({ lesson, entryDate }: { lesson: Lesson; entryDate: s
           ) : null}
 
           <div className="mt-4 rounded-xl bg-secondary/60 p-3">
-            <label htmlFor="reflection" className="eyebrow">
+            <label htmlFor={`reflection-${entryDate}`} className="eyebrow">
               Explain this in your own words
             </label>
             <Textarea
-              id="reflection"
+              id={`reflection-${entryDate}`}
               value={answer}
               onChange={(event) => setAnswer(event.target.value)}
               rows={4}

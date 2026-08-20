@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 
 import type { NewsItem } from "@/lib/today";
-import { NEWS_CATEGORIES } from "@/lib/today";
+import { NEWS_CATEGORIES, formatDateShort } from "@/lib/today";
 
 function Field({ label, value }: { label: string; value: string | undefined }) {
   if (!value) return null;
@@ -16,6 +16,12 @@ function Field({ label, value }: { label: string; value: string | undefined }) {
 
 function NewsCard({ item }: { item: NewsItem }) {
   const [open, setOpen] = useState(false);
+  const meta = [
+    item.published_date ? formatDateShort(item.published_date) : null,
+    item.source ?? null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <article className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
@@ -25,7 +31,12 @@ function NewsCard({ item }: { item: NewsItem }) {
         aria-expanded={open}
         className="flex w-full items-start gap-3 p-4 text-left"
       >
-        <h3 className="flex-1 text-sm font-semibold leading-snug">{item.headline}</h3>
+        <span className="flex-1">
+          <span className="block text-sm font-semibold leading-snug">{item.headline}</span>
+          {meta ? (
+            <span className="mt-1 block text-xs text-muted-foreground">{meta}</span>
+          ) : null}
+        </span>
         <ChevronDown
           className={`mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
           aria-hidden="true"
