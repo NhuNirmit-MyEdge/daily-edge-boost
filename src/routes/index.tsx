@@ -1,7 +1,19 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { BookOpen, ChevronRight, ClipboardPaste, HelpCircle, Newspaper, Target } from "lucide-react";
+import {
+  BookOpen,
+  Building2,
+  CalendarDays,
+  ChevronRight,
+  ClipboardPaste,
+  HelpCircle,
+  Newspaper,
+  Play,
+  Target,
+  Users,
+} from "lucide-react";
+
 
 import { fetchDailyEntry, fetchProfile, formatToday, todayISO } from "@/lib/today";
 
