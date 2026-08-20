@@ -2,7 +2,13 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { EntryParseError, parseEntryJSON, upsertDailyEntry } from "@/lib/today";
+import {
+  EntryParseError,
+  applyCompanyUpdates,
+  parseCompanyUpdatesJSON,
+  parseEntryJSON,
+  upsertDailyEntry,
+} from "@/lib/today";
 import { SectionHeading } from "./SectionHeading";
 
 export function PasteEntryCard({
