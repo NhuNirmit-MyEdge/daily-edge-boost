@@ -2,7 +2,13 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { EntryParseError, parseEntryJSON, upsertDailyEntry } from "@/lib/today";
+import {
+  EntryParseError,
+  applyCompanyUpdates,
+  parseCompanyUpdatesJSON,
+  parseEntryJSON,
+  upsertDailyEntry,
+} from "@/lib/today";
 import { SectionHeading } from "./SectionHeading";
 
 export function PasteEntryCard({
@@ -22,10 +28,21 @@ export function PasteEntryCard({
     try {
       const entry = parseEntryJSON(text, entryDate);
       await upsertDailyEntry(entry);
-      toast.success("Today's edge is loaded");
+      let applied = 0;
+      try {
+        applied = await applyCompanyUpdates(parseCompanyUpdatesJSON(text, entry.entry_date));
+      } catch {
+        applied = 0;
+      }
+      toast.success(
+        applied > 0
+          ? `Today's edge is loaded · ${applied} company update${applied === 1 ? "" : "s"}`
+          : "Today's edge is loaded",
+      );
       setText("");
       await onSaved();
     } catch (err) {
+
       if (err instanceof EntryParseError) {
         setError(err.message);
       } else {
@@ -46,8 +63,12 @@ export function PasteEntryCard({
         <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
           Expects: entry_date, news_brief (10 stories — 2 each from Healthcare, Technology,
           Business, Venture Capital, Global Affairs, each with category, headline, what_happened,
-          why_it_matters, why_it_matters_to_you, watch_next), lesson, task, quiz.
+          why_it_matters, why_it_matters_to_you, watch_next), lesson, task, quiz. Optional:
+          influencers (2 × name, why_relevant), video_recommendation (title, url, duration_note),
+          and company_updates (company_name, entry_date, headline, summary, source_url) — updates
+          for untracked companies are skipped.
         </p>
+
         <textarea
           id="paste-entry"
           value={text}

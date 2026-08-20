@@ -28,7 +28,10 @@ function LoadPage() {
     <PageShell title="Load Today">
       <PasteEntryCard
         entryDate={entryDate}
-        onSaved={() => queryClient.invalidateQueries({ queryKey: ["daily-entry", entryDate] })}
+        onSaved={async () => {
+          await queryClient.invalidateQueries({ queryKey: ["daily-entry", entryDate] });
+          await queryClient.invalidateQueries({ queryKey: ["company-updates"] });
+        }}
       />
     </PageShell>
   );

@@ -1,7 +1,19 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { BookOpen, ChevronRight, ClipboardPaste, HelpCircle, Newspaper, Target } from "lucide-react";
+import {
+  BookOpen,
+  Building2,
+  CalendarDays,
+  ChevronRight,
+  ClipboardPaste,
+  HelpCircle,
+  Newspaper,
+  Play,
+  Target,
+  Users,
+} from "lucide-react";
+
 
 import { fetchDailyEntry, fetchProfile, formatToday, todayISO } from "@/lib/today";
 
@@ -29,8 +41,13 @@ const SECTIONS = [
   { to: "/learn", label: "Let's Learn", icon: BookOpen, blurb: "Today's lesson" },
   { to: "/action", label: "Today's Action", icon: Target, blurb: "One thing to do" },
   { to: "/quiz", label: "Quiz", icon: HelpCircle, blurb: "5 questions" },
+  { to: "/companies", label: "Companies to Follow", icon: Building2, blurb: "Tracked updates" },
+  { to: "/events", label: "Events & Conferences", icon: CalendarDays, blurb: "2026 calendar" },
+  { to: "/influencers", label: "Influencers to Follow", icon: Users, blurb: "2 people today" },
+  { to: "/video", label: "Video Recommendation", icon: Play, blurb: "Under 20 minutes" },
   { to: "/load", label: "Load Today", icon: ClipboardPaste, blurb: "Paste today's content" },
 ] as const;
+
 
 function Today() {
   const entryDate = todayISO();
