@@ -1,14 +1,17 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
+import { BulkImportBox } from "@/components/today/BulkImportBox";
 import { CollapsibleRow } from "@/components/today/CollapsibleRow";
 import { EmptyState, PageShell } from "@/components/today/SectionPage";
-import { SectionHeading } from "@/components/today/SectionHeading";
-import { fetchEvents, formatEventDates, parseEventsJSON, replaceEvents } from "@/lib/tracking";
-import { EntryParseError } from "@/lib/today";
+import {
+  fetchEvents,
+  formatEventDates,
+  isPastEvent,
+  parseEventsJSON,
+  upsertEvents,
+} from "@/lib/tracking";
 
 export const Route = createFileRoute("/events")({
   head: () => ({
@@ -29,29 +32,10 @@ function EventsPage() {
   const queryClient = useQueryClient();
   const eventsQuery = useQuery({ queryKey: ["events"], queryFn: fetchEvents });
   const [openId, setOpenId] = useState<string | null>(null);
-  const [text, setText] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
 
-  const onSave = async () => {
-    setError(null);
-    setBusy(true);
-    try {
-      const parsed = parseEventsJSON(text);
-      await replaceEvents(parsed);
-      setText("");
-      toast.success("Events updated");
-      await queryClient.invalidateQueries({ queryKey: ["events"] });
-    } catch (err) {
-      setError(
-        err instanceof EntryParseError ? err.message : "Couldn't save that list. Please try again.",
-      );
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const events = eventsQuery.data ?? [];
+  const events = (eventsQuery.data ?? [])
+    .slice()
+    .sort((a, b) => (a.start_date ?? "9999").localeCompare(b.start_date ?? "9999"));
 
   return (
     <PageShell title="Events & Conferences">
@@ -64,59 +48,46 @@ function EventsPage() {
             body="Paste a JSON list of events below to build your 2026 calendar."
           />
         ) : (
-          events.map((event) => (
-            <CollapsibleRow
-              key={event.id}
-              title={event.name}
-              open={openId === event.id}
-              onToggle={() => setOpenId(openId === event.id ? null : event.id)}
-            >
-              <p className="text-sm font-medium">
-                {formatEventDates(event.start_date, event.end_date)}
-              </p>
-              {event.location ? (
-                <p className="mt-0.5 text-sm text-muted-foreground">{event.location}</p>
-              ) : null}
-              {event.relevance_note ? (
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                  {event.relevance_note}
-                </p>
-              ) : null}
-            </CollapsibleRow>
-          ))
+          events.map((event) => {
+            const past = isPastEvent(event);
+            return (
+              <div key={event.id} className={past ? "opacity-60" : undefined}>
+                <CollapsibleRow
+                  title={event.name}
+                  subtitle={past ? "Past" : undefined}
+                  open={openId === event.id}
+                  onToggle={() => setOpenId(openId === event.id ? null : event.id)}
+                >
+                  <p className="text-sm font-medium">
+                    {formatEventDates(event.start_date, event.end_date)}
+                  </p>
+                  {event.location ? (
+                    <p className="mt-0.5 text-sm text-muted-foreground">{event.location}</p>
+                  ) : null}
+                  {event.relevance_note ? (
+                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                      {event.relevance_note}
+                    </p>
+                  ) : null}
+                </CollapsibleRow>
+              </div>
+            );
+          })
         )}
       </div>
 
-      <section className="mt-8">
-        <SectionHeading label="Paste events list" />
-        <div className="rounded-2xl border border-border bg-card p-4">
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            Paste a JSON array of events — each with name, start_date, end_date (YYYY-MM-DD),
-            location and relevance_note. This replaces the current list.
-          </p>
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            rows={7}
-            spellCheck={false}
-            aria-label="Paste events list"
-            placeholder={'[{"name":"HLTH Europe","start_date":"2026-06-15","end_date":"2026-06-18","location":"Amsterdam","relevance_note":"Digital health leaders"}]'}
-            className="mt-2 w-full rounded-xl border border-border bg-background p-3 font-mono text-xs leading-relaxed outline-none focus:ring-2 focus:ring-ring"
-          />
-          {error ? (
-            <p role="alert" className="mt-2 text-xs leading-relaxed text-destructive">
-              {error}
-            </p>
-          ) : null}
-          <Button
-            className="mt-3 w-full"
-            onClick={onSave}
-            disabled={busy || text.trim().length === 0}
-          >
-            {busy ? "Saving…" : "Save events"}
-          </Button>
-        </div>
-      </section>
+      <BulkImportBox
+        heading="Paste events list"
+        instructions="Paste a JSON array of events — each with name, start_date, end_date (YYYY-MM-DD), location and relevance_note. Existing events are updated rather than duplicated."
+        placeholder={'[{"name":"HLTH Europe","start_date":"2026-06-15","end_date":"2026-06-18","location":"Amsterdam","relevance_note":"Digital health leaders"}]'}
+        submitLabel="Save events"
+        onSubmit={async (text) => {
+          const parsed = parseEventsJSON(text);
+          const count = await upsertEvents(parsed);
+          await queryClient.invalidateQueries({ queryKey: ["events"] });
+          return `Saved ${count} events.`;
+        }}
+      />
     </PageShell>
   );
 }

@@ -7,18 +7,9 @@ import { Textarea } from "@/components/ui/textarea";
 import type { Lesson } from "@/lib/today";
 import { fetchReflection, saveReflection } from "@/lib/today";
 
-export function LessonCard({
-  lesson,
-  entryDate,
-  defaultOpen = false,
-}: {
-  lesson: Lesson;
-  entryDate: string;
-  defaultOpen?: boolean;
-}) {
+export function LessonBody({ lesson, entryDate }: { lesson: Lesson; entryDate: string }) {
   const [answer, setAnswer] = useState("");
   const [saving, setSaving] = useState(false);
-  const [open, setOpen] = useState(defaultOpen);
 
   useEffect(() => {
     let active = true;
@@ -44,6 +35,47 @@ export function LessonCard({
     }
   };
 
+  return (
+    <div>
+      {lesson.content ? (
+        <p className="text-sm leading-relaxed text-foreground/85">{lesson.content}</p>
+      ) : null}
+
+      <div className="mt-4 rounded-xl bg-secondary/60 p-3">
+        <label htmlFor={`reflection-${entryDate}`} className="eyebrow">
+          Explain this in your own words
+        </label>
+        <Textarea
+          id={`reflection-${entryDate}`}
+          value={answer}
+          onChange={(event) => setAnswer(event.target.value)}
+          rows={4}
+          placeholder="In my own words…"
+          className="mt-2 resize-none bg-background/60"
+        />
+        <Button
+          onClick={onSave}
+          disabled={saving || answer.trim().length === 0}
+          size="sm"
+          className="mt-3 w-full"
+        >
+          {saving ? "Saving…" : "Save answer"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+export function LessonCard({
+  lesson,
+  entryDate,
+  defaultOpen = false,
+}: {
+  lesson: Lesson;
+  entryDate: string;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
   const meta = [lesson.module, lesson.day].filter(Boolean).join(" · ");
 
   return (
@@ -66,31 +98,7 @@ export function LessonCard({
 
       {open ? (
         <div className="border-t border-border px-4 py-4">
-          {lesson.content ? (
-            <p className="text-sm leading-relaxed text-foreground/85">{lesson.content}</p>
-          ) : null}
-
-          <div className="mt-4 rounded-xl bg-secondary/60 p-3">
-            <label htmlFor={`reflection-${entryDate}`} className="eyebrow">
-              Explain this in your own words
-            </label>
-            <Textarea
-              id={`reflection-${entryDate}`}
-              value={answer}
-              onChange={(event) => setAnswer(event.target.value)}
-              rows={4}
-              placeholder="In my own words…"
-              className="mt-2 resize-none bg-background/60"
-            />
-            <Button
-              onClick={onSave}
-              disabled={saving || answer.trim().length === 0}
-              size="sm"
-              className="mt-3 w-full"
-            >
-              {saving ? "Saving…" : "Save answer"}
-            </Button>
-          </div>
+          <LessonBody lesson={lesson} entryDate={entryDate} />
         </div>
       ) : null}
     </article>

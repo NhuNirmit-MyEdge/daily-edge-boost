@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Play } from "lucide-react";
 
-import { EmptyState, EntrySection } from "@/components/today/SectionPage";
+import { HistorySection } from "@/components/today/HistorySection";
 
 export const Route = createFileRoute("/video")({
   head: () => ({
@@ -9,10 +9,10 @@ export const Route = createFileRoute("/video")({
       { title: "Video Recommendation — MyEdge" },
       {
         name: "description",
-        content: "One short YouTube video worth watching today — under 20 minutes.",
+        content: "Every short YouTube video recommendation so far — each under 20 minutes.",
       },
       { property: "og:title", content: "Video Recommendation — MyEdge" },
-      { property: "og:description", content: "Today's short video pick." },
+      { property: "og:description", content: "Short video picks, newest first." },
     ],
   }),
   component: VideoPage,
@@ -20,22 +20,21 @@ export const Route = createFileRoute("/video")({
 
 function VideoPage() {
   return (
-    <EntrySection
+    <HistorySection
       title="Video Recommendation"
+      emptyTitle="No videos yet"
+      emptyBody="Load a briefing that includes a video recommendation and it'll show up here."
+      hasContent={(entry) =>
+        Boolean(entry.video_recommendation?.title || entry.video_recommendation?.url)
+      }
       render={(entry) => {
-        const video = entry.video_recommendation;
-        if (!video || (!video.title && !video.url)) {
-          return (
-            <EmptyState
-              title="No video today"
-              body="Today's briefing didn't include a video recommendation."
-            />
-          );
-        }
+        const video = entry.video_recommendation!;
         return (
-          <article className="rounded-2xl border border-border bg-card p-4">
+          <div>
             <Play className="h-5 w-5 text-primary" aria-hidden="true" />
-            <h2 className="mt-2 text-sm font-semibold leading-snug">{video.title ?? "Watch this"}</h2>
+            <h3 className="mt-2 text-sm font-semibold leading-snug">
+              {video.title ?? "Watch this"}
+            </h3>
             <p className="mt-1 text-xs text-muted-foreground">
               {video.duration_note ?? "Under 20 minutes"}
             </p>
@@ -49,7 +48,7 @@ function VideoPage() {
                 {video.url}
               </a>
             ) : null}
-          </article>
+          </div>
         );
       }}
     />
