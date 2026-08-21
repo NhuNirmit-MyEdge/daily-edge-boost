@@ -42,9 +42,9 @@ const SECTIONS = [
   { to: "/action", label: "Today's Action", icon: Target, blurb: "One thing to do" },
   { to: "/quiz", label: "Quiz", icon: HelpCircle, blurb: "5 questions" },
   { to: "/companies", label: "Companies to Follow", icon: Building2, blurb: "Tracked updates" },
-  { to: "/events", label: "Events & Conferences", icon: CalendarDays, blurb: "2026 calendar" },
   { to: "/influencers", label: "Influencers to Follow", icon: Users, blurb: "2 people today" },
   { to: "/video", label: "Video Recommendation", icon: Play, blurb: "Under 20 minutes" },
+  { to: "/events", label: "Events & Conferences", icon: CalendarDays, blurb: "2026 calendar" },
   { to: "/load", label: "Load Today", icon: ClipboardPaste, blurb: "Paste today's content" },
 ] as const;
 
