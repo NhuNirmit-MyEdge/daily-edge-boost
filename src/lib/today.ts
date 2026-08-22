@@ -371,12 +371,10 @@ export function normalizeQuiz(raw: unknown): QuizQuestion[] {
       }
     }
     if (!question && options.length === 0) continue;
-    out.push({
-      question,
-      options,
-      correct_index,
-      explanation: typeof o["explanation"] === "string" ? o["explanation"] : undefined,
-    });
+    const normalized: QuizQuestion = { question, options };
+    if (correct_index !== undefined) normalized.correct_index = correct_index;
+    if (typeof o["explanation"] === "string") normalized.explanation = o["explanation"];
+    out.push(normalized);
   }
   return out;
 }
@@ -422,12 +420,11 @@ export async function loadPastedEntry(text: string, fallbackDate: string): Promi
     .upsert({ entry_date: entryDate }, { onConflict: "entry_date" });
   if (baseError) throw baseError;
 
-  fields.push({
-    key: "entry_date",
-    label: "date",
-    status: "ok",
-    detail: rawDate ? undefined : "defaulted to today",
-  });
+  fields.push(
+    rawDate
+      ? { key: "entry_date", label: "date", status: "ok" }
+      : { key: "entry_date", label: "date", status: "ok", detail: "defaulted to today" },
+  );
 
   const saveField = async (
     key: string,
