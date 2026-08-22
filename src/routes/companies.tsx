@@ -149,9 +149,14 @@ function CompaniesPage() {
           const result = await importCompanyHistory(parsed);
           await queryClient.invalidateQueries({ queryKey: ["companies"] });
           await queryClient.invalidateQueries({ queryKey: ["company-updates"] });
-          return `Imported ${result.inserted} updates${
-            result.createdCompanies ? ` and added ${result.createdCompanies} new companies` : ""
-          }.`;
+          return [
+            `Parsed ${parsed.length} entries ✓`,
+            `${result.createdCompanies} new companies created ✓`,
+            `${result.inserted} company updates saved ✓`,
+            ...(parsed.length - result.inserted > 0
+              ? [`${parsed.length - result.inserted} entries skipped ✗ (could not match a company)`]
+              : []),
+          ];
         }}
       />
     </PageShell>
