@@ -314,6 +314,13 @@ export async function upsertDailyEntry(entry: DailyEntry) {
 
 /* ---------- Robust field-by-field load ---------- */
 
+function errText(err: unknown): string {
+  if (err && typeof err === "object" && typeof (err as { message?: unknown }).message === "string") {
+    return (err as { message: string }).message;
+  }
+  return "failed to save";
+}
+
 export type FieldStatus = {
   key: string;
   label: string;
@@ -447,7 +454,7 @@ export async function loadPastedEntry(text: string, fallbackDate: string): Promi
         key,
         label,
         status: "failed",
-        detail: err instanceof Error ? err.message : "failed to save",
+        detail: errText(err),
       });
     }
   };
@@ -504,7 +511,7 @@ export async function loadPastedEntry(text: string, fallbackDate: string): Promi
         key: "company_updates",
         label: "company updates",
         status: "failed",
-        detail: err instanceof Error ? err.message : "failed to save",
+        detail: errText(err),
       });
     }
   }
