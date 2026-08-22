@@ -289,7 +289,9 @@ export async function applyCompanyUpdates(updates: PastedCompanyUpdate[]): Promi
     })
     .filter((r): r is NonNullable<typeof r> => r !== null);
   if (rows.length === 0) return 0;
-  const { error: insertError } = await supabase.from("company_updates").insert(rows);
+  const { error: insertError } = await supabase
+    .from("company_updates")
+    .upsert(rows, { onConflict: "company_id,entry_date,headline" });
   if (insertError) throw insertError;
   return rows.length;
 }
