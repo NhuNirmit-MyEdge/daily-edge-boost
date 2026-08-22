@@ -318,7 +318,12 @@ function errText(err: unknown): string {
   if (err && typeof err === "object" && typeof (err as { message?: unknown }).message === "string") {
     return (err as { message: string }).message;
   }
-  return "failed to save";
+  try {
+    const t = JSON.stringify(err);
+    return t && t !== "{}" ? t : "failed to save";
+  } catch {
+    return "failed to save";
+  }
 }
 
 export type FieldStatus = {
