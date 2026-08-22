@@ -289,7 +289,9 @@ export async function applyCompanyUpdates(updates: PastedCompanyUpdate[]): Promi
     })
     .filter((r): r is NonNullable<typeof r> => r !== null);
   if (rows.length === 0) return 0;
-  const { error: insertError } = await supabase.from("company_updates").insert(rows);
+  const { error: insertError } = await supabase
+    .from("company_updates")
+    .upsert(rows, { onConflict: "company_id,entry_date,headline" });
   if (insertError) throw insertError;
   return rows.length;
 }
@@ -308,4 +310,230 @@ export async function upsertDailyEntry(entry: DailyEntry) {
     { onConflict: "entry_date" },
   );
   if (error) throw error;
+}
+
+/* ---------- Robust field-by-field load ---------- */
+
+function errText(err: unknown): string {
+  if (err && typeof err === "object" && typeof (err as { message?: unknown }).message === "string") {
+    return (err as { message: string }).message;
+  }
+  try {
+    const t = JSON.stringify(err);
+    return t && t !== "{}" ? t : "failed to save";
+  } catch {
+    return "failed to save";
+  }
+}
+
+export type FieldStatus = {
+  key: string;
+  label: string;
+  status: "ok" | "failed" | "missing";
+  detail?: string;
+};
+
+export type LoadReport = {
+  entryDate: string;
+  fields: FieldStatus[];
+  summary: string;
+  hasFailures: boolean;
+};
+
+export const EXPECTED_ENTRY_FIELDS = [
+  "entry_date",
+  "news_brief",
+  "lesson",
+  "quiz",
+  "task",
+  "influencers",
+  "video_recommendation",
+  "company_updates",
+] as const;
+
+/** Accepts common variants for quiz questions and returns a normalised list. */
+export function normalizeQuiz(raw: unknown): QuizQuestion[] {
+  if (!Array.isArray(raw)) return [];
+  const out: QuizQuestion[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+    const o = item as Record<string, unknown>;
+    const question =
+      (typeof o["question"] === "string" && o["question"]) ||
+      (typeof o["prompt"] === "string" && o["prompt"]) ||
+      (typeof o["q"] === "string" && o["q"]) ||
+      "";
+    const rawOptions = o["options"] ?? o["choices"] ?? o["answers"];
+    const options = Array.isArray(rawOptions)
+      ? rawOptions.map((opt) =>
+          typeof opt === "string"
+            ? opt
+            : opt && typeof opt === "object" && typeof (opt as Record<string, unknown>)["text"] === "string"
+              ? ((opt as Record<string, unknown>)["text"] as string)
+              : String(opt),
+        )
+      : [];
+    const rawIndex = o["correct_index"] ?? o["correctIndex"] ?? o["answer_index"] ?? o["correct"];
+    let correct_index: number | undefined;
+    if (typeof rawIndex === "number") correct_index = rawIndex;
+    else if (typeof rawIndex === "string") {
+      const n = Number(rawIndex);
+      if (Number.isInteger(n)) correct_index = n;
+      else {
+        const found = options.findIndex((opt) => opt === rawIndex);
+        if (found !== -1) correct_index = found;
+      }
+    }
+    if (!question && options.length === 0) continue;
+    const normalized: QuizQuestion = { question, options };
+    if (correct_index !== undefined) normalized.correct_index = correct_index;
+    if (typeof o["explanation"] === "string") normalized.explanation = o["explanation"];
+    out.push(normalized);
+  }
+  return out;
+}
+
+async function updateEntryField(entryDate: string, column: string, value: unknown) {
+  const { error } = await supabase
+    .from("daily_entries")
+    .update({ [column]: value } as never)
+    .eq("entry_date", entryDate);
+  if (error) throw error;
+}
+
+/**
+ * Parses pasted JSON, saves each present field independently and reports on every field.
+ * One field failing never blocks the others.
+ */
+export async function loadPastedEntry(text: string, fallbackDate: string): Promise<LoadReport> {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch {
+    throw new EntryParseError(
+      "That doesn't look like valid JSON. Check for missing quotes, commas or brackets.",
+    );
+  }
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new EntryParseError("Expected a JSON object with keys like entry_date, news_brief and quiz.");
+  }
+  const o = raw as Record<string, unknown>;
+
+  const rawDate = o["entry_date"];
+  if (rawDate !== undefined && (typeof rawDate !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(rawDate))) {
+    throw new EntryParseError("entry_date must be a date string in YYYY-MM-DD format.");
+  }
+  const entryDate = (rawDate as string | undefined) ?? fallbackDate;
+
+  const fields: FieldStatus[] = [];
+  const present = (key: string) => o[key] !== undefined && o[key] !== null;
+
+  // Ensure the row exists before any per-field update.
+  const { error: baseError } = await supabase
+    .from("daily_entries")
+    .upsert({ entry_date: entryDate }, { onConflict: "entry_date" });
+  if (baseError) throw baseError;
+
+  fields.push(
+    rawDate
+      ? { key: "entry_date", label: "date", status: "ok" }
+      : { key: "entry_date", label: "date", status: "ok", detail: "defaulted to today" },
+  );
+
+  const saveField = async (
+    key: string,
+    label: string,
+    column: string,
+    value: unknown,
+    detail?: string,
+  ) => {
+    if (!present(key)) {
+      fields.push({ key, label, status: "missing" });
+      return;
+    }
+    try {
+      await updateEntryField(entryDate, column, value);
+      fields.push({ key, label, status: "ok", detail: detail ?? "" });
+    } catch (err) {
+      fields.push({
+        key,
+        label,
+        status: "failed",
+        detail: errText(err),
+      });
+    }
+  };
+
+  const news = Array.isArray(o["news_brief"]) ? (o["news_brief"] as NewsItem[]) : [];
+  await saveField("news_brief", "news items", "news_brief", news, `${news.length} news items`);
+
+  await saveField("lesson", "lesson", "lesson", o["lesson"] ?? null, "lesson");
+  await saveField("task", "task", "task", typeof o["task"] === "string" ? o["task"] : String(o["task"] ?? ""), "task");
+
+  const quiz = normalizeQuiz(o["quiz"]);
+  if (present("quiz") && quiz.length === 0) {
+    fields.push({
+      key: "quiz",
+      label: "quiz",
+      status: "failed",
+      detail: "no usable questions found (need question + options)",
+    });
+  } else {
+    await saveField("quiz", "quiz", "quiz", quiz, `quiz (${quiz.length} questions)`);
+  }
+
+  const influencers = Array.isArray(o["influencers"]) ? (o["influencers"] as Influencer[]) : [];
+  await saveField(
+    "influencers",
+    "influencers",
+    "influencers",
+    influencers,
+    `${influencers.length} influencers`,
+  );
+
+  await saveField(
+    "video_recommendation",
+    "video",
+    "video_recommendation",
+    o["video_recommendation"] ?? null,
+    "video",
+  );
+
+  // Company updates (separate table).
+  if (!present("company_updates")) {
+    fields.push({ key: "company_updates", label: "company updates", status: "missing" });
+  } else {
+    try {
+      const applied = await applyCompanyUpdates(parseCompanyUpdatesJSON(text, entryDate));
+      fields.push({
+        key: "company_updates",
+        label: "company updates",
+        status: "ok",
+        detail: `${applied} company updates`,
+      });
+    } catch (err) {
+      fields.push({
+        key: "company_updates",
+        label: "company updates",
+        status: "failed",
+        detail: errText(err),
+      });
+    }
+  }
+
+  const parts = fields
+    .filter((f) => f.key !== "entry_date")
+    .map((f) => {
+      const name = f.detail && f.status === "ok" && f.detail ? f.detail : f.label;
+      if (f.status === "ok") return `${name} ✓`;
+      if (f.status === "missing") return `${f.label} — (not in paste)`;
+      return `${f.label} ✗ (${f.detail ?? "failed to save"})`;
+    });
+
+  return {
+    entryDate,
+    fields,
+    summary: `Loaded for ${formatDateShort(entryDate)}: ${parts.join(", ")}`,
+    hasFailures: fields.some((f) => f.status === "failed"),
+  };
 }

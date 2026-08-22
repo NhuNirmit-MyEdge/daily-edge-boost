@@ -85,7 +85,16 @@ function EventsPage() {
           const parsed = parseEventsJSON(text);
           const count = await upsertEvents(parsed);
           await queryClient.invalidateQueries({ queryKey: ["events"] });
-          return `Saved ${count} events.`;
+          const dated = parsed.filter((e) => e.start_date).length;
+          const located = parsed.filter((e) => e.location).length;
+          const noted = parsed.filter((e) => e.relevance_note).length;
+          return [
+            `Parsed ${parsed.length} events ✓`,
+            `${count} events saved ✓`,
+            `${dated} with start dates ✓${parsed.length - dated ? ` · ${parsed.length - dated} missing start_date` : ""}`,
+            `${located} with locations ✓`,
+            `${noted} with relevance notes ✓`,
+          ];
         }}
       />
     </PageShell>

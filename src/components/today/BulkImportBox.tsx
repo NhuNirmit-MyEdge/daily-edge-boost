@@ -15,11 +15,11 @@ export function BulkImportBox({
   instructions: string;
   placeholder: string;
   submitLabel: string;
-  onSubmit: (text: string) => Promise<string>;
+  onSubmit: (text: string) => Promise<string | string[]>;
 }) {
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<string[] | null>(null);
   const [busy, setBusy] = useState(false);
 
   const submit = async () => {
@@ -29,7 +29,7 @@ export function BulkImportBox({
     try {
       const result = await onSubmit(text);
       setText("");
-      setMessage(result);
+      setMessage(Array.isArray(result) ? result : [result]);
     } catch (err) {
       setError(
         err instanceof EntryParseError ? err.message : "Couldn't import that. Please try again.",
@@ -59,7 +59,13 @@ export function BulkImportBox({
           </p>
         ) : null}
         {message ? (
-          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{message}</p>
+          <ul className="mt-2 space-y-1 rounded-xl border border-border bg-background p-3">
+            {message.map((line) => (
+              <li key={line} className="text-xs leading-relaxed text-foreground/85">
+                {line}
+              </li>
+            ))}
+          </ul>
         ) : null}
         <Button className="mt-3 w-full" onClick={submit} disabled={busy || text.trim().length === 0}>
           {busy ? "Importing…" : submitLabel}

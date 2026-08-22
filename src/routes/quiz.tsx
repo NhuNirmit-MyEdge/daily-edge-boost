@@ -3,7 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 
 import { QuizSection } from "@/components/today/QuizSection";
 import { EntrySection } from "@/components/today/SectionPage";
-import { fetchProfile } from "@/lib/today";
+import { EmptyState } from "@/components/today/SectionPage";
+import { fetchProfile, normalizeQuiz } from "@/lib/today";
 
 export const Route = createFileRoute("/quiz")({
   head: () => ({
@@ -27,9 +28,18 @@ function QuizPage() {
   return (
     <EntrySection
       title="Quiz"
-      render={(entry, entryDate) => (
-        <QuizSection questions={entry.quiz ?? []} entryDate={entryDate} streak={streak} />
-      )}
+      render={(entry, entryDate) => {
+        const questions = normalizeQuiz(entry.quiz ?? []);
+        if (questions.length === 0) {
+          return (
+            <EmptyState
+              title="No quiz for today yet"
+              body="Today's entry has no quiz questions saved. Paste today's JSON in Load Today — each question needs question, options, correct_index and explanation."
+            />
+          );
+        }
+        return <QuizSection questions={questions} entryDate={entryDate} streak={streak} />;
+      }}
     />
   );
 }
