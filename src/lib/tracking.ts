@@ -263,3 +263,91 @@ export function isPastEvent(event: EventItem): boolean {
     .slice(0, 10);
   return end < todayISOStr;
 }
+
+/* ---------- Event sectors, regions and timeline helpers ---------- */
+
+export const SECTORS = [
+  "Digital Health",
+  "Pharma",
+  "Insurance",
+  "NHS",
+  "Health Tech",
+  "Wellness",
+  "Nutrition",
+  "Wellbeing",
+  "Fitness",
+  "Medical/Hospital",
+  "Medical Devices",
+] as const;
+
+export const REGIONS = [
+  "North America",
+  "UK",
+  "Europe",
+  "GCC",
+  "India",
+  "APAC/Australia",
+] as const;
+
+/** Sectors are encoded as a leading "[A/B/C]" prefix in relevance_note. */
+export function eventSectors(event: EventItem): string[] {
+  const note = event.relevance_note ?? "";
+  const match = /^\s*\[([^\]]+)\]/.exec(note);
+  const haystack = (match?.[1] ?? "").toLowerCase();
+  if (!haystack) return [];
+  return SECTORS.filter((s) => haystack.includes(s.toLowerCase()));
+}
+
+/** Text of the relevance note with the "[...]" sector prefix removed. */
+export function eventDescription(event: EventItem): string {
+  return (event.relevance_note ?? "").replace(/^\s*\[[^\]]+\]\s*/, "").trim();
+}
+
+const REGION_RULES: { region: (typeof REGIONS)[number]; needles: string[] }[] = [
+  { region: "UK", needles: ["uk", "united kingdom", "england", "london", "scotland", "wales", "manchester", "birmingham", "glasgow", "edinburgh", "belfast", "liverpool", "leeds"] },
+  { region: "North America", needles: ["usa", "u.s.", "united states", "canada", "mexico"] },
+  { region: "GCC", needles: ["uae", "dubai", "abu dhabi", "saudi", "riyadh", "qatar", "doha", "kuwait", "bahrain", "oman", "muscat", "jeddah"] },
+  { region: "India", needles: ["india"] },
+  { region: "APAC/Australia", needles: ["australia", "singapore", "japan", "china", "hong kong", "korea", "malaysia", "indonesia", "thailand", "new zealand", "vietnam", "philippines", "taiwan"] },
+  { region: "Europe", needles: ["switzerland", "germany", "france", "spain", "italy", "netherlands", "portugal", "belgium", "denmark", "sweden", "norway", "finland", "ireland", "austria", "poland", "greece", "czech", "hungary", "amsterdam", "paris", "berlin", "barcelona", "madrid", "milan", "lisbon", "copenhagen", "stockholm", "vienna", "zurich", "geneva", "basel", "davos", "dublin", "brussels", "monaco"] },
+];
+
+export function eventRegion(event: EventItem): string | null {
+  const loc = (event.location ?? "").toLowerCase();
+  if (!loc) return null;
+  for (const { region, needles } of REGION_RULES) {
+    if (needles.some((n) => loc.includes(n))) return region;
+  }
+  return null;
+}
+
+function parts(d: string) {
+  const [y, m, day] = d.split("-").map(Number);
+  return { y: y ?? 1970, m: (m ?? 1) - 1, d: day ?? 1 };
+}
+
+export function eventMonthKey(event: EventItem): string {
+  const d = event.start_date ?? event.end_date;
+  if (!d) return "tbc";
+  return d.slice(0, 7);
+}
+
+export function eventMonthLabel(event: EventItem): string {
+  const d = event.start_date ?? event.end_date;
+  if (!d) return "Dates TBC";
+  const p = parts(d);
+  return new Date(p.y, p.m, 1).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+}
+
+/** Compact day range for the timeline spine: "10", "18–21", "29 Sep–2 Oct". */
+export function eventDayRange(event: EventItem): string {
+  const { start_date: start, end_date: end } = event;
+  if (!start && !end) return "—";
+  if (!start) return String(parts(end as string).d);
+  const s = parts(start);
+  if (!end || end === start) return String(s.d);
+  const e = parts(end);
+  if (s.m === e.m && s.y === e.y) return `${s.d}–${e.d}`;
+  const mon = (m: number) => new Date(2026, m, 1).toLocaleDateString("en-GB", { month: "short" });
+  return `${s.d} ${mon(s.m)}–${e.d} ${mon(e.m)}`;
+}
