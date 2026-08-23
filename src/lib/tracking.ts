@@ -47,6 +47,13 @@ export async function addCompany(name: string) {
   }
 }
 
+export async function deleteCompany(id: string) {
+  const { error: updErr } = await supabase.from("company_updates").delete().eq("company_id", id);
+  if (updErr) throw updErr;
+  const { error } = await supabase.from("companies").delete().eq("id", id);
+  if (error) throw error;
+}
+
 export async function fetchEvents(): Promise<EventItem[]> {
   const { data, error } = await supabase
     .from("events")
