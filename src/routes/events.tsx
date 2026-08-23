@@ -1,16 +1,23 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { BulkImportBox } from "@/components/today/BulkImportBox";
-import { CollapsibleRow } from "@/components/today/CollapsibleRow";
 import { EmptyState, PageShell } from "@/components/today/SectionPage";
 import {
+  REGIONS,
+  SECTORS,
+  eventDayRange,
+  eventDescription,
+  eventMonthKey,
+  eventMonthLabel,
+  eventRegion,
+  eventSectors,
   fetchEvents,
-  formatEventDates,
   isPastEvent,
   parseEventsJSON,
   upsertEvents,
+  type EventItem,
 } from "@/lib/tracking";
 
 export const Route = createFileRoute("/events")({
@@ -19,67 +26,181 @@ export const Route = createFileRoute("/events")({
       { title: "Events & Conferences — MyEdge" },
       {
         name: "description",
-        content: "Relevant global industry events and conferences for 2026, with dates and locations.",
+        content:
+          "A scrollable 2026 timeline of relevant industry events and conferences, filterable by sector and region.",
       },
       { property: "og:title", content: "Events & Conferences — MyEdge" },
       { property: "og:description", content: "The 2026 industry events worth knowing about." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: EventsPage,
 });
 
+function Chip({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+        active
+          ? "border-primary bg-primary text-primary-foreground"
+          : "border-border bg-card text-muted-foreground hover:text-foreground"
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
+function EventRow({ event }: { event: EventItem }) {
+  const past = isPastEvent(event);
+  const sectors = eventSectors(event);
+  const description = eventDescription(event);
+  const region = eventRegion(event);
+
+  return (
+    <li className={`grid grid-cols-[3.5rem_minmax(0,1fr)] gap-3 ${past ? "opacity-50" : ""}`}>
+      <div className="relative pt-3 text-right">
+        <span className="block text-sm font-semibold tabular-nums leading-tight">
+          {eventDayRange(event)}
+        </span>
+        {past ? (
+          <span className="mt-0.5 block text-[0.625rem] uppercase tracking-wide text-muted-foreground">
+            Past
+          </span>
+        ) : null}
+      </div>
+      <div className="relative border-l border-border pb-4 pl-4">
+        <span
+          aria-hidden="true"
+          className="absolute -left-[4.5px] top-4 h-2 w-2 rounded-full bg-primary"
+        />
+        <div className="rounded-2xl border border-border bg-card p-3">
+          <h3 className="text-sm font-semibold leading-snug">{event.name}</h3>
+          {event.location ? (
+            <p className="mt-0.5 text-xs text-muted-foreground">{event.location}</p>
+          ) : null}
+          {description ? (
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{description}</p>
+          ) : null}
+          {sectors.length > 0 || region ? (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {sectors.map((s) => (
+                <span
+                  key={s}
+                  className="rounded-full bg-primary/15 px-2 py-0.5 text-[0.6875rem] font-medium text-primary"
+                >
+                  {s}
+                </span>
+              ))}
+              {region ? (
+                <span className="rounded-full bg-secondary px-2 py-0.5 text-[0.6875rem] font-medium text-secondary-foreground">
+                  {region}
+                </span>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </li>
+  );
+}
+
 function EventsPage() {
   const queryClient = useQueryClient();
   const eventsQuery = useQuery({ queryKey: ["events"], queryFn: fetchEvents });
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [sector, setSector] = useState<string | null>(null);
+  const [region, setRegion] = useState<string | null>(null);
 
-  const events = (eventsQuery.data ?? [])
-    .slice()
-    .sort((a, b) => (a.start_date ?? "9999").localeCompare(b.start_date ?? "9999"));
+  const groups = useMemo(() => {
+    const list = (eventsQuery.data ?? [])
+      .filter((e) => (sector ? eventSectors(e).includes(sector) : true))
+      .filter((e) => (region ? eventRegion(e) === region : true))
+      .slice()
+      .sort((a, b) => (a.start_date ?? "9999").localeCompare(b.start_date ?? "9999"));
+
+    const out: { key: string; label: string; items: EventItem[] }[] = [];
+    for (const e of list) {
+      const key = eventMonthKey(e);
+      const last = out[out.length - 1];
+      if (last && last.key === key) last.items.push(e);
+      else out.push({ key, label: eventMonthLabel(e), items: [e] });
+    }
+    return out;
+  }, [eventsQuery.data, sector, region]);
 
   return (
     <PageShell title="Events & Conferences">
-      <div className="space-y-2">
+      <div className="-mx-4 space-y-2 px-4">
+        <div className="flex gap-1.5 overflow-x-auto pb-1">
+          <Chip label="All sectors" active={sector === null} onClick={() => setSector(null)} />
+          {SECTORS.map((s) => (
+            <Chip
+              key={s}
+              label={s}
+              active={sector === s}
+              onClick={() => setSector(sector === s ? null : s)}
+            />
+          ))}
+        </div>
+        <div className="flex gap-1.5 overflow-x-auto pb-1">
+          <Chip label="All regions" active={region === null} onClick={() => setRegion(null)} />
+          {REGIONS.map((r) => (
+            <Chip
+              key={r}
+              label={r}
+              active={region === r}
+              onClick={() => setRegion(region === r ? null : r)}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-5">
         {eventsQuery.isLoading ? (
-          [0, 1, 2].map((i) => <div key={i} className="h-14 animate-pulse rounded-2xl bg-card" />)
-        ) : events.length === 0 ? (
+          <div className="space-y-3">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="h-20 animate-pulse rounded-2xl bg-card" />
+            ))}
+          </div>
+        ) : groups.length === 0 ? (
           <EmptyState
-            title="No events yet"
-            body="Paste a JSON list of events below to build your 2026 calendar."
+            title="No events match"
+            body="Clear the filters, or paste a JSON list of events below to build your 2026 calendar."
           />
         ) : (
-          events.map((event) => {
-            const past = isPastEvent(event);
-            return (
-              <div key={event.id} className={past ? "opacity-60" : undefined}>
-                <CollapsibleRow
-                  title={event.name}
-                  subtitle={past ? "Past" : undefined}
-                  open={openId === event.id}
-                  onToggle={() => setOpenId(openId === event.id ? null : event.id)}
-                >
-                  <p className="text-sm font-medium">
-                    {formatEventDates(event.start_date, event.end_date)}
-                  </p>
-                  {event.location ? (
-                    <p className="mt-0.5 text-sm text-muted-foreground">{event.location}</p>
-                  ) : null}
-                  {event.relevance_note ? (
-                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                      {event.relevance_note}
-                    </p>
-                  ) : null}
-                </CollapsibleRow>
-              </div>
-            );
-          })
+          <div>
+            {groups.map((group) => (
+              <section key={group.key}>
+                <h2 className="sticky top-0 z-10 -mx-4 bg-background/95 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground backdrop-blur">
+                  {group.label}
+                </h2>
+                <ul className="mt-1">
+                  {group.items.map((event) => (
+                    <EventRow key={event.id} event={event} />
+                  ))}
+                </ul>
+              </section>
+            ))}
+          </div>
         )}
       </div>
 
       <BulkImportBox
         heading="Paste events list"
-        instructions="Paste a JSON array of events — each with name, start_date, end_date (YYYY-MM-DD), location and relevance_note. Existing events are updated rather than duplicated."
-        placeholder={'[{"name":"HLTH Europe","start_date":"2026-06-15","end_date":"2026-06-18","location":"Amsterdam","relevance_note":"Digital health leaders"}]'}
+        instructions="Paste a JSON array of events — each with name, start_date, end_date (YYYY-MM-DD), location and relevance_note. Prefix relevance_note with sectors in brackets, e.g. [Digital Health/Pharma]. Existing events are updated rather than duplicated."
+        placeholder={'[{"name":"HLTH Europe","start_date":"2026-06-15","end_date":"2026-06-18","location":"Amsterdam, Netherlands","relevance_note":"[Digital Health/Health Tech] Digital health leaders"}]'}
         submitLabel="Save events"
         onSubmit={async (text) => {
           const parsed = parseEventsJSON(text);
