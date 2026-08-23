@@ -26,14 +26,33 @@ function InfluencersPage() {
       hasContent={(entry) => (entry.influencers ?? []).length > 0}
       render={(entry) => (
         <div className="space-y-3">
-          {(entry.influencers ?? []).slice(0, 2).map((person, i) => (
-            <div key={i}>
-              <h3 className="text-sm font-semibold">{person.name ?? "Unnamed"}</h3>
-              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                {person.why_relevant ?? ""}
-              </p>
-            </div>
-          ))}
+          {(entry.influencers ?? []).map((person, i) => {
+            const why = person.why_follow ?? person.why_relevant ?? "";
+            const link = person.link ?? person.url ?? null;
+            return (
+              <div key={i}>
+                <h3 className="text-sm font-semibold">{person.name ?? "Unnamed"}</h3>
+                {person.role_or_field ? (
+                  <p className="mt-0.5 text-xs text-muted-foreground">{person.role_or_field}</p>
+                ) : null}
+                {why ? (
+                  <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-foreground/85">
+                    {why}
+                  </p>
+                ) : null}
+                {link ? (
+                  <a
+                    href={link}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-1 inline-block text-xs text-primary underline"
+                  >
+                    Profile
+                  </a>
+                ) : null}
+              </div>
+            );
+          })}
         </div>
       )}
     />

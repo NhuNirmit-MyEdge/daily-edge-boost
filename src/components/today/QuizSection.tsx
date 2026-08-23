@@ -83,7 +83,8 @@ export function QuizSection({
           </div>
         ) : (
           <>
-            <h3 className="text-base font-semibold leading-snug">{question.question}</h3>
+            {question.category ? <p className="eyebrow">{question.category}</p> : null}
+            <h3 className="mt-1 text-base font-semibold leading-snug">{question.question}</h3>
             <div className="mt-4 space-y-2">
               {(question.options ?? []).map((option, optionIndex) => {
                 const isSelected = current?.selected === optionIndex;

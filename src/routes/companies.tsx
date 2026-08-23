@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+
+import { Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { BulkImportBox } from "@/components/today/BulkImportBox";
@@ -9,13 +11,27 @@ import { CollapsibleRow } from "@/components/today/CollapsibleRow";
 import { EmptyState, PageShell } from "@/components/today/SectionPage";
 import {
   addCompany,
+  deleteCompany,
   fetchCompanies,
   fetchCompanyUpdates,
   groupUpdatesByPeriod,
   importCompanyHistory,
   parseCompanyHistoryJSON,
 } from "@/lib/tracking";
-import { EntryParseError, formatDateShort } from "@/lib/today";
+import { EntryParseError, formatDateShort, todayISO } from "@/lib/today";
+
+const VIEW_KEY = "myedge:company-last-viewed";
+
+function readViewed(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(VIEW_KEY);
+    const parsed: unknown = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
 
 export const Route = createFileRoute("/companies")({
   head: () => ({
@@ -38,6 +54,24 @@ function CompaniesPage() {
   const updatesQuery = useQuery({ queryKey: ["company-updates"], queryFn: fetchCompanyUpdates });
   const [openId, setOpenId] = useState<string | null>(null);
   const [name, setName] = useState("");
+  const today = todayISO();
+  const [viewed, setViewed] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    setViewed(readViewed());
+  }, []);
+
+  const markViewed = (companyName: string) => {
+    setViewed((prev) => {
+      const next = { ...prev, [companyName]: today };
+      try {
+        window.localStorage.setItem(VIEW_KEY, JSON.stringify(next));
+      } catch {
+        /* storage unavailable */
+      }
+      return next;
+    });
+  };
 
   const addMutation = useMutation({
     mutationFn: (value: string) => addCompany(value),
@@ -48,6 +82,16 @@ function CompaniesPage() {
     },
     onError: (err) =>
       toast.error(err instanceof EntryParseError ? err.message : "Couldn't add that company."),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteCompany(id),
+    onSuccess: () => {
+      toast.success("Company removed");
+      queryClient.invalidateQueries({ queryKey: ["companies"] });
+      queryClient.invalidateQueries({ queryKey: ["company-updates"] });
+    },
+    onError: () => toast.error("Couldn't remove that company."),
   });
 
   const companies = companiesQuery.data ?? [];
@@ -95,10 +139,35 @@ function CompaniesPage() {
                 title={company.name}
                 subtitle={timeline.length ? `${timeline.length} updates` : undefined}
                 open={openId === company.id}
-                onToggle={() => setOpenId(openId === company.id ? null : company.id)}
+                badge={
+                  timeline.some((u) => u.entry_date === today) && viewed[company.name] !== today
+                }
+                actions={
+                  <button
+                    type="button"
+                    aria-label={`Remove ${company.name}`}
+                    className="rounded-lg p-2 text-muted-foreground transition-colors hover:text-destructive"
+                    onClick={() => {
+                      if (
+                        window.confirm(
+                          `Remove ${company.name} and all its updates? This can't be undone.`,
+                        )
+                      ) {
+                        deleteMutation.mutate(company.id);
+                      }
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                }
+                onToggle={() => {
+                  const nextOpen = openId === company.id ? null : company.id;
+                  setOpenId(nextOpen);
+                  if (nextOpen) markViewed(company.name);
+                }}
               >
                 {timeline.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No updates logged yet.</p>
+                  <p className="text-sm text-muted-foreground">No history loaded yet.</p>
                 ) : (
                   <div className="space-y-4">
                     {groups.map((group) => (
