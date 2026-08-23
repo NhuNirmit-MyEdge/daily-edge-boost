@@ -29,13 +29,21 @@ export type Lesson = {
 };
 
 export type QuizQuestion = {
+  category?: string;
   question?: string;
   options?: string[];
   correct_index?: number;
   explanation?: string;
 };
 
-export type Influencer = { name?: string; why_relevant?: string };
+export type Influencer = {
+  name?: string;
+  role_or_field?: string;
+  why_follow?: string;
+  why_relevant?: string;
+  link?: string;
+  url?: string;
+};
 
 export type VideoRecommendation = {
   title?: string;
@@ -386,6 +394,7 @@ export function normalizeQuiz(raw: unknown): QuizQuestion[] {
     }
     if (!question && options.length === 0) continue;
     const normalized: QuizQuestion = { question, options };
+    if (typeof o["category"] === "string") normalized.category = o["category"];
     if (correct_index !== undefined) normalized.correct_index = correct_index;
     if (typeof o["explanation"] === "string") normalized.explanation = o["explanation"];
     out.push(normalized);
