@@ -21,7 +21,8 @@ export const Route = createFileRoute("/term")({
 function TermPage() {
   return (
     <HistorySection
-      title="Term of the Day"
+      title="Term of the day"
+      section="term"
       emptyTitle="No terms yet"
       emptyBody="Once you load a day's briefing with a term of the day, it will appear here."
       hasContent={(entry) => Boolean(entry.term_of_the_day?.term)}

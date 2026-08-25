@@ -24,7 +24,8 @@ export const Route = createFileRoute("/learn")({
 function LearnPage() {
   return (
     <HistorySection
-      title="Let's Learn"
+      title="Learn"
+      section="learn"
       emptyTitle="No lessons yet"
       emptyBody="Once you load a day's briefing with a lesson, it will appear here."
       hasContent={(entry) => Boolean(entry.lesson?.title || entry.lesson?.content)}

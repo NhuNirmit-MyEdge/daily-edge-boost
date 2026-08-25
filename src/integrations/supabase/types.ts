@@ -184,6 +184,24 @@ export type Database = {
         }
         Relationships: []
       }
+      section_views: {
+        Row: {
+          section: string
+          view_date: string
+          viewed_at: string
+        }
+        Insert: {
+          section: string
+          view_date?: string
+          viewed_at?: string
+        }
+        Update: {
+          section?: string
+          view_date?: string
+          viewed_at?: string
+        }
+        Relationships: []
+      }
       quiz_responses: {
         Row: {
           correct: boolean

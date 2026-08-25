@@ -1,9 +1,10 @@
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { ChevronLeft, Sparkles } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
 import { fetchDailyEntry, todayISO, type DailyEntry } from "@/lib/today";
+import { recordSectionView } from "@/lib/views";
 
 export function EmptyState({ title, body }: { title: string; body: string }) {
   return (
@@ -15,7 +16,19 @@ export function EmptyState({ title, body }: { title: string; body: string }) {
   );
 }
 
-export function PageShell({ title, children }: { title: string; children: ReactNode }) {
+export function PageShell({
+  title,
+  section,
+  children,
+}: {
+  title: string;
+  section?: string | undefined;
+  children: ReactNode;
+}) {
+  useEffect(() => {
+    if (section) void recordSectionView(section);
+  }, [section]);
+
   return (
     <main className="mx-auto w-full max-w-md px-4 pb-16 pt-8">
       <Link
@@ -42,15 +55,17 @@ export function useTodayEntry() {
 
 export function EntrySection({
   title,
+  section,
   render,
 }: {
   title: string;
+  section?: string | undefined;
   render: (entry: DailyEntry, entryDate: string) => ReactNode;
 }) {
   const { entryDate, query } = useTodayEntry();
 
   return (
-    <PageShell title={title}>
+    <PageShell title={title} section={section}>
       {query.isLoading ? (
         <div className="space-y-3">
           {[0, 1, 2].map((i) => (

@@ -7,12 +7,14 @@ import { fetchAllDailyEntries, formatDateShort, todayISO, type DailyEntry } from
 
 export function HistorySection({
   title,
+  section,
   emptyTitle,
   emptyBody,
   hasContent,
   render,
 }: {
   title: string;
+  section?: string | undefined;
   emptyTitle: string;
   emptyBody: string;
   hasContent: (entry: DailyEntry) => boolean;
@@ -25,7 +27,7 @@ export function HistorySection({
   const entries = (query.data ?? []).filter(hasContent);
 
   return (
-    <PageShell title={title}>
+    <PageShell title={title} section={section}>
       {query.isLoading ? (
         <div className="space-y-3">
           {[0, 1, 2].map((i) => (

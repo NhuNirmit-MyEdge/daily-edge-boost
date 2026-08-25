@@ -22,7 +22,8 @@ export const Route = createFileRoute("/perspective")({
 function PerspectivePage() {
   return (
     <HistorySection
-      title="Perspective of the Day"
+      title="Debate"
+      section="perspective"
       emptyTitle="No perspectives yet"
       emptyBody="Once you load a day's briefing with a perspective of the day, it will appear here."
       hasContent={(entry) => Boolean(entry.perspective_of_the_day?.question)}

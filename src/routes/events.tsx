@@ -173,7 +173,7 @@ function EventsPage() {
   }, [eventsQuery.data, sector, region]);
 
   return (
-    <PageShell title="Events & Conferences">
+    <PageShell title="Events" section="events">
       <div className="-mx-4 space-y-2 px-4">
         <div className="flex gap-1.5 overflow-x-auto pb-1">
           <Chip label="All sectors" active={sector === null} onClick={() => setSector(null)} />

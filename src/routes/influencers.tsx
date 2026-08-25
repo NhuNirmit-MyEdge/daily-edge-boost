@@ -20,7 +20,8 @@ export const Route = createFileRoute("/influencers")({
 function InfluencersPage() {
   return (
     <HistorySection
-      title="Influencers to Follow"
+      title="Influencers"
+      section="influencers"
       emptyTitle="No suggestions yet"
       emptyBody="Load a briefing that includes influencers and they'll show up here."
       hasContent={(entry) => (entry.influencers ?? []).length > 0}

@@ -19,6 +19,8 @@ import {
 
 
 import { fetchDailyEntry, fetchProfile, formatToday, todayISO } from "@/lib/today";
+import { fetchSectionViewHistory } from "@/lib/views";
+import { MiniProgressBar } from "@/components/today/MiniProgressBar";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -39,21 +41,24 @@ export const Route = createFileRoute("/")({
   component: Today,
 });
 
+// Order matters: the first and last entries render as thin full-width banners;
+// everything between renders in the 2-column grid.
 const SECTIONS = [
-  { to: "/news", label: "News", icon: Newspaper, blurb: "10 stories, 5 categories" },
-  { to: "/learn", label: "Let's Learn", icon: BookOpen, blurb: "Today's lesson" },
-  { to: "/action", label: "Today's Action", icon: Target, blurb: "One thing to do" },
-  { to: "/quiz", label: "Quiz", icon: HelpCircle, blurb: "5 questions" },
-  { to: "/term", label: "Term of the Day", icon: Lightbulb, blurb: "One concept, explained" },
-  { to: "/perspective", label: "Perspective of the Day", icon: Quote, blurb: "Both sides of a live debate" },
-  { to: "/companies", label: "Companies to Follow", icon: Building2, blurb: "Tracked updates" },
-  { to: "/influencers", label: "Influencers to Follow", icon: Users, blurb: "2 people today" },
-  { to: "/video", label: "Video Recommendation", icon: Play, blurb: "Under 20 minutes" },
-  { to: "/events", label: "Events & Conferences", icon: CalendarDays, blurb: "2026 calendar" },
-  { to: "/summary", label: "Your Progress", icon: BarChart3, blurb: "Weekly & monthly summary" },
-  { to: "/load", label: "Load Today", icon: ClipboardPaste, blurb: "Paste today's content" },
+  { to: "/summary", label: "My Progress", icon: BarChart3, blurb: "Weekly & monthly summary", section: "summary" },
+  { to: "/news", label: "News", icon: Newspaper, blurb: "10 stories, 5 categories", section: "news" },
+  { to: "/learn", label: "Learn", icon: BookOpen, blurb: "Today's lesson", section: "learn" },
+  { to: "/action", label: "Action", icon: Target, blurb: "One thing to do", section: "action" },
+  { to: "/quiz", label: "Quiz", icon: HelpCircle, blurb: "5 questions", section: "quiz" },
+  { to: "/companies", label: "Companies", icon: Building2, blurb: "Tracked updates", section: "companies" },
+  { to: "/influencers", label: "Influencers", icon: Users, blurb: "2 people today", section: "influencers" },
+  { to: "/term", label: "Term of the day", icon: Lightbulb, blurb: "One concept, explained", section: "term" },
+  { to: "/perspective", label: "Debate", icon: Quote, blurb: "Both sides of a live debate", section: "perspective" },
+  { to: "/video", label: "Videos", icon: Play, blurb: "Under 20 minutes", section: "video" },
+  { to: "/events", label: "Events", icon: CalendarDays, blurb: "2026 calendar", section: "events" },
+  { to: "/load", label: "Load Today", icon: ClipboardPaste, blurb: "Paste today's content", section: "load" },
 ] as const;
 
+const SECTION_KEYS = SECTIONS.map((s) => s.section);
 
 function Today() {
   const entryDate = todayISO();
@@ -65,6 +70,10 @@ function Today() {
     queryFn: () => fetchDailyEntry(entryDate),
   });
   const profileQuery = useQuery({ queryKey: ["profile"], queryFn: fetchProfile });
+  const viewsQuery = useQuery({
+    queryKey: ["section-views"],
+    queryFn: () => fetchSectionViewHistory(SECTION_KEYS),
+  });
 
   const ready = Boolean(entryQuery.data);
   const streak = profileQuery.data?.streak_count ?? 0;
@@ -74,13 +83,38 @@ function Today() {
       ? new Date(updatedAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
       : null;
 
+  const [first, ...rest] = SECTIONS;
+  const last = rest[rest.length - 1];
+  const middle = rest.slice(0, -1);
+
+  const wideTile = (section: (typeof SECTIONS)[number]) => (
+    <Link
+      key={section.to}
+      to={section.to}
+      className="group flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 shadow-sm transition-colors hover:border-primary/40 hover:bg-secondary/50"
+    >
+      <section.icon className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center justify-between gap-2 text-sm font-semibold">
+          {section.label}
+          <ChevronRight
+            className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+            aria-hidden="true"
+          />
+        </span>
+        <span className="mt-0.5 block text-xs text-muted-foreground">{section.blurb}</span>
+        <MiniProgressBar history={viewsQuery.data?.[section.section]} />
+      </span>
+    </Link>
+  );
+
   return (
     <main className="mx-auto w-full max-w-md px-4 pb-16 pt-10">
       <header>
         <p className="eyebrow">MyEdge</p>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight">Good morning</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {mounted ? formatToday(entryDate) : "\u00a0"}
+          {mounted ? formatToday(entryDate) : " "}
         </p>
       </header>
 
@@ -97,8 +131,10 @@ function Today() {
         ) : null}
       </p>
 
-      <nav className="mt-6 grid grid-cols-2 gap-3">
-        {SECTIONS.map((section) => (
+      <nav className="mt-6">{wideTile(first)}</nav>
+
+      <nav className="mt-3 grid grid-cols-2 gap-3">
+        {middle.map((section) => (
           <Link
             key={section.to}
             to={section.to}
@@ -114,10 +150,13 @@ function Today() {
                 />
               </span>
               <span className="mt-0.5 block text-xs text-muted-foreground">{section.blurb}</span>
+              <MiniProgressBar history={viewsQuery.data?.[section.section]} />
             </span>
           </Link>
         ))}
       </nav>
+
+      <nav className="mt-3">{wideTile(last)}</nav>
     </main>
   );
 }

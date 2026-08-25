@@ -21,7 +21,8 @@ export const Route = createFileRoute("/video")({
 function VideoPage() {
   return (
     <HistorySection
-      title="Video Recommendation"
+      title="Videos"
+      section="video"
       emptyTitle="No videos yet"
       emptyBody="Load a briefing that includes a video recommendation and it'll show up here."
       hasContent={(entry) =>

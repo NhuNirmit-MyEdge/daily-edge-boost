@@ -26,6 +26,7 @@ function NewsPage() {
   return (
     <EntrySection
       title="News"
+      section="news"
       render={(entry) => <NewsSection items={entry.news_brief ?? []} />}
     />
   );

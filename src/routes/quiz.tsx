@@ -28,6 +28,7 @@ function QuizPage() {
   return (
     <EntrySection
       title="Quiz"
+      section="quiz"
       render={(entry, entryDate) => {
         const questions = normalizeQuiz(entry.quiz ?? []);
         if (questions.length === 0) {

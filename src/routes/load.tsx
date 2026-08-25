@@ -25,7 +25,7 @@ function LoadPage() {
   const queryClient = useQueryClient();
 
   return (
-    <PageShell title="Load Today">
+    <PageShell title="Load Today" section="load">
       <PasteEntryCard
         entryDate={entryDate}
         onSaved={async () => {

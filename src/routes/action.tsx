@@ -21,7 +21,8 @@ export const Route = createFileRoute("/action")({
 function ActionPage() {
   return (
     <EntrySection
-      title="Today's Action"
+      title="Action"
+      section="action"
       render={(entry, entryDate) =>
         entry.task ? (
           <ActionCard task={entry.task} entryDate={entryDate} />

@@ -98,7 +98,7 @@ function CompaniesPage() {
   const updates = updatesQuery.data ?? [];
 
   return (
-    <PageShell title="Companies to Follow">
+    <PageShell title="Companies" section="companies">
       <form
         className="flex gap-2"
         onSubmit={(e) => {

@@ -82,7 +82,7 @@ function SummaryPage() {
       : [];
 
   return (
-    <PageShell title="Your Progress">
+    <PageShell title="My Progress" section="summary">
       <div className="rounded-2xl border border-border bg-card p-4">
         <p className="eyebrow">Current streak</p>
         <p className="mt-1 text-2xl font-semibold tabular-nums">
