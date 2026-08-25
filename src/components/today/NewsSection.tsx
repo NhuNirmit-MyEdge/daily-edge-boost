@@ -57,12 +57,28 @@ function NewsCard({ item }: { item: NewsItem }) {
   );
 }
 
-export function NewsSection({ items }: { items: NewsItem[] }) {
+export function NewsSection({
+  items,
+  preferredCategories,
+}: {
+  items: NewsItem[];
+  preferredCategories?: readonly string[] | undefined;
+}) {
   if (!items.length) return null;
 
-  const known = NEWS_CATEGORIES.filter((c) =>
+  const present = NEWS_CATEGORIES.filter((c) =>
     items.some((i) => i.category?.toLowerCase() === c.toLowerCase()),
   );
+  // Put categories the reader said they're interested in first, so the same shared
+  // daily content still feels tailored — everything is still here, just reordered.
+  const preferredLower = new Set((preferredCategories ?? []).map((c) => c.toLowerCase()));
+  const known = preferredCategories?.length
+    ? [...present].sort((a, b) => {
+        const aMatch = preferredLower.has(a.toLowerCase()) ? 0 : 1;
+        const bMatch = preferredLower.has(b.toLowerCase()) ? 0 : 1;
+        return aMatch - bMatch;
+      })
+    : present;
   const uncategorised = items.filter(
     (i) => !known.some((c) => c.toLowerCase() === i.category?.toLowerCase()),
   );

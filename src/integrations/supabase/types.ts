@@ -112,6 +112,32 @@ export type Database = {
         }
         Relationships: []
       }
+      event_stars: {
+        Row: {
+          event_id: string
+          starred_at: string
+          user_id: string
+        }
+        Insert: {
+          event_id: string
+          starred_at?: string
+          user_id?: string
+        }
+        Update: {
+          event_id?: string
+          starred_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_stars_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       events: {
         Row: {
           created_at: string
@@ -121,7 +147,6 @@ export type Database = {
           name: string
           relevance_note: string | null
           start_date: string | null
-          starred: boolean
         }
         Insert: {
           created_at?: string
@@ -131,7 +156,6 @@ export type Database = {
           name: string
           relevance_note?: string | null
           start_date?: string | null
-          starred?: boolean
         }
         Update: {
           created_at?: string
@@ -141,7 +165,6 @@ export type Database = {
           name?: string
           relevance_note?: string | null
           start_date?: string | null
-          starred?: boolean
         }
         Relationships: []
       }
@@ -150,16 +173,19 @@ export type Database = {
           answer: string
           entry_date: string
           updated_at: string
+          user_id: string
         }
         Insert: {
           answer?: string
           entry_date: string
           updated_at?: string
+          user_id?: string
         }
         Update: {
           answer?: string
           entry_date?: string
           updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -169,34 +195,76 @@ export type Database = {
           last_completed_date: string | null
           streak_count: number
           topics_covered: string[]
+          user_id: string | null
         }
         Insert: {
           id?: string
           last_completed_date?: string | null
           streak_count?: number
           topics_covered?: string[]
+          user_id?: string | null
         }
         Update: {
           id?: string
           last_completed_date?: string | null
           streak_count?: number
           topics_covered?: string[]
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      user_profiles: {
+        Row: {
+          created_at: string
+          email: string
+          experience_level: string | null
+          focus_topics: string[]
+          id: string
+          is_admin: boolean
+          onboarded: boolean
+          role_title: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          experience_level?: string | null
+          focus_topics?: string[]
+          id: string
+          is_admin?: boolean
+          onboarded?: boolean
+          role_title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          experience_level?: string | null
+          focus_topics?: string[]
+          id?: string
+          is_admin?: boolean
+          onboarded?: boolean
+          role_title?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
       section_views: {
         Row: {
           section: string
+          user_id: string
           view_date: string
           viewed_at: string
         }
         Insert: {
           section: string
+          user_id?: string
           view_date?: string
           viewed_at?: string
         }
         Update: {
           section?: string
+          user_id?: string
           view_date?: string
           viewed_at?: string
         }
@@ -210,6 +278,7 @@ export type Database = {
           id: string
           question_index: number
           selected_index: number
+          user_id: string
         }
         Insert: {
           correct?: boolean
@@ -218,6 +287,7 @@ export type Database = {
           id?: string
           question_index: number
           selected_index: number
+          user_id?: string
         }
         Update: {
           correct?: boolean
@@ -226,6 +296,7 @@ export type Database = {
           id?: string
           question_index?: number
           selected_index?: number
+          user_id?: string
         }
         Relationships: []
       }
@@ -236,6 +307,7 @@ export type Database = {
           entry_date: string
           id: string
           note: string | null
+          user_id: string
         }
         Insert: {
           completed?: boolean
@@ -243,6 +315,7 @@ export type Database = {
           entry_date: string
           id?: string
           note?: string | null
+          user_id?: string
         }
         Update: {
           completed?: boolean
@@ -250,6 +323,7 @@ export type Database = {
           entry_date?: string
           id?: string
           note?: string | null
+          user_id?: string
         }
         Relationships: []
       }

@@ -56,17 +56,29 @@ export async function deleteCompany(id: string) {
 }
 
 export async function fetchEvents(): Promise<EventItem[]> {
-  const { data, error } = await supabase
-    .from("events")
-    .select("id, name, start_date, end_date, location, relevance_note, starred")
-    .order("start_date", { ascending: true, nullsFirst: false });
+  const [{ data, error }, { data: stars, error: starsError }] = await Promise.all([
+    supabase
+      .from("events")
+      .select("id, name, start_date, end_date, location, relevance_note")
+      .order("start_date", { ascending: true, nullsFirst: false }),
+    // RLS scopes this to the signed-in user's own stars — no extra filter needed.
+    supabase.from("event_stars").select("event_id"),
+  ]);
   if (error) throw error;
-  return (data ?? []) as EventItem[];
+  if (starsError) throw starsError;
+  const starred = new Set((stars ?? []).map((s: { event_id: string }) => s.event_id));
+  type BareEvent = Omit<EventItem, "starred">;
+  return (data ?? []).map((e: BareEvent) => ({ ...e, starred: starred.has(e.id) }));
 }
 
 export async function setEventStarred(id: string, starred: boolean) {
-  const { error } = await supabase.from("events").update({ starred }).eq("id", id);
-  if (error) throw error;
+  if (starred) {
+    const { error } = await supabase.from("event_stars").upsert({ event_id: id }, { onConflict: "user_id,event_id" });
+    if (error) throw error;
+  } else {
+    const { error } = await supabase.from("event_stars").delete().eq("event_id", id);
+    if (error) throw error;
+  }
 }
 
 export type ParsedEvent = {

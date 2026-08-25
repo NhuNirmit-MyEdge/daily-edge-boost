@@ -23,6 +23,7 @@ import {
   upsertEvents,
   type EventItem,
 } from "@/lib/tracking";
+import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/events")({
   head: () => ({
@@ -136,6 +137,8 @@ function EventRow({ event, onToggleStar }: { event: EventItem; onToggleStar: (ev
 }
 
 function EventsPage() {
+  const { profile } = useAuth();
+  const isAdmin = Boolean(profile?.is_admin);
   const queryClient = useQueryClient();
   const eventsQuery = useQuery({ queryKey: ["events"], queryFn: fetchEvents });
   const [sector, setSector] = useState<string | null>(null);
@@ -241,27 +244,29 @@ function EventsPage() {
         )}
       </div>
 
-      <BulkImportBox
-        heading="Paste events list"
-        instructions="Paste a JSON array of events — each with name, start_date, end_date (YYYY-MM-DD), location and relevance_note. Prefix relevance_note with sectors in brackets, e.g. [Digital Health/Pharma]. Existing events are updated rather than duplicated."
-        placeholder={'[{"name":"HLTH Europe","start_date":"2026-06-15","end_date":"2026-06-18","location":"Amsterdam, Netherlands","relevance_note":"[Digital Health/Health Tech] Digital health leaders"}]'}
-        submitLabel="Save events"
-        onSubmit={async (text) => {
-          const parsed = parseEventsJSON(text);
-          const count = await upsertEvents(parsed);
-          await queryClient.invalidateQueries({ queryKey: ["events"] });
-          const dated = parsed.filter((e) => e.start_date).length;
-          const located = parsed.filter((e) => e.location).length;
-          const noted = parsed.filter((e) => e.relevance_note).length;
-          return [
-            `Parsed ${parsed.length} events ✓`,
-            `${count} events saved ✓`,
-            `${dated} with start dates ✓${parsed.length - dated ? ` · ${parsed.length - dated} missing start_date` : ""}`,
-            `${located} with locations ✓`,
-            `${noted} with relevance notes ✓`,
-          ];
-        }}
-      />
+      {isAdmin ? (
+        <BulkImportBox
+          heading="Paste events list"
+          instructions="Paste a JSON array of events — each with name, start_date, end_date (YYYY-MM-DD), location and relevance_note. Prefix relevance_note with sectors in brackets, e.g. [Digital Health/Pharma]. Existing events are updated rather than duplicated."
+          placeholder={'[{"name":"HLTH Europe","start_date":"2026-06-15","end_date":"2026-06-18","location":"Amsterdam, Netherlands","relevance_note":"[Digital Health/Health Tech] Digital health leaders"}]'}
+          submitLabel="Save events"
+          onSubmit={async (text) => {
+            const parsed = parseEventsJSON(text);
+            const count = await upsertEvents(parsed);
+            await queryClient.invalidateQueries({ queryKey: ["events"] });
+            const dated = parsed.filter((e) => e.start_date).length;
+            const located = parsed.filter((e) => e.location).length;
+            const noted = parsed.filter((e) => e.relevance_note).length;
+            return [
+              `Parsed ${parsed.length} events ✓`,
+              `${count} events saved ✓`,
+              `${dated} with start dates ✓${parsed.length - dated ? ` · ${parsed.length - dated} missing start_date` : ""}`,
+              `${located} with locations ✓`,
+              `${noted} with relevance notes ✓`,
+            ];
+          }}
+        />
+      ) : null}
     </PageShell>
   );
 }

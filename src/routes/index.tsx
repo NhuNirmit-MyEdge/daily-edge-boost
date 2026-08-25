@@ -13,6 +13,7 @@ import {
   Newspaper,
   Play,
   Quote,
+  Settings,
   Target,
   Users,
 } from "lucide-react";
@@ -21,6 +22,7 @@ import {
 import { fetchDailyEntry, fetchProfile, formatToday, todayISO } from "@/lib/today";
 import { fetchSectionViewHistory } from "@/lib/views";
 import { MiniProgressBar } from "@/components/today/MiniProgressBar";
+import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -58,21 +60,26 @@ const SECTIONS = [
   { to: "/load", label: "Load Today", icon: ClipboardPaste, blurb: "Paste today's content", section: "load" },
 ] as const;
 
-const SECTION_KEYS = SECTIONS.map((s) => s.section);
-
 function Today() {
   const entryDate = todayISO();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+  const { profile } = useAuth();
+  const isAdmin = Boolean(profile?.is_admin);
 
   const entryQuery = useQuery({
     queryKey: ["daily-entry", entryDate],
     queryFn: () => fetchDailyEntry(entryDate),
   });
   const profileQuery = useQuery({ queryKey: ["profile"], queryFn: fetchProfile });
+
+  // Load Today is an admin-only tool for pasting in the day's content — hide it
+  // from everyone else.
+  const visibleSections = isAdmin ? SECTIONS : SECTIONS.filter((s) => s.section !== "load");
+  const sectionKeys = visibleSections.map((s) => s.section);
   const viewsQuery = useQuery({
-    queryKey: ["section-views"],
-    queryFn: () => fetchSectionViewHistory(SECTION_KEYS),
+    queryKey: ["section-views", sectionKeys.join(",")],
+    queryFn: () => fetchSectionViewHistory(sectionKeys),
   });
 
   const ready = Boolean(entryQuery.data);
@@ -83,7 +90,7 @@ function Today() {
       ? new Date(updatedAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
       : null;
 
-  const [first, ...rest] = SECTIONS;
+  const [first, ...rest] = visibleSections;
   const last = rest[rest.length - 1];
   const middle = rest.slice(0, -1);
 
@@ -110,12 +117,21 @@ function Today() {
 
   return (
     <main className="mx-auto w-full max-w-md px-4 pb-16 pt-10">
-      <header>
-        <p className="eyebrow">MyEdge</p>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight">Good morning</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {mounted ? formatToday(entryDate) : " "}
-        </p>
+      <header className="flex items-start justify-between gap-3">
+        <div>
+          <p className="eyebrow">MyEdge</p>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight">Good morning</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {mounted ? formatToday(entryDate) : " "}
+          </p>
+        </div>
+        <Link
+          to="/settings"
+          aria-label="Settings"
+          className="mt-1 shrink-0 rounded-full border border-border bg-card p-2 text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+        >
+          <Settings className="h-5 w-5" aria-hidden="true" />
+        </Link>
       </header>
 
       <p className="mt-4 rounded-2xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">

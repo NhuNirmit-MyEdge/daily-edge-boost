@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { NewsSection } from "@/components/today/NewsSection";
 import { EntrySection } from "@/components/today/SectionPage";
+import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/news")({
   head: () => ({
@@ -23,11 +24,14 @@ export const Route = createFileRoute("/news")({
 });
 
 function NewsPage() {
+  const { profile } = useAuth();
   return (
     <EntrySection
       title="News"
       section="news"
-      render={(entry) => <NewsSection items={entry.news_brief ?? []} />}
+      render={(entry) => (
+        <NewsSection items={entry.news_brief ?? []} preferredCategories={profile?.focus_topics} />
+      )}
     />
   );
 }

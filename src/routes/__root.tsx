@@ -4,15 +4,19 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
+  useNavigate,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
+import { Sparkles } from "lucide-react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { setupServiceWorker } from "../lib/pwa";
 import { Toaster } from "@/components/ui/sonner";
+import { AuthProvider, useAuth } from "@/lib/auth";
 
 function NotFoundComponent() {
   return (
@@ -132,9 +136,60 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      <AuthProvider>
+        <AuthGate>
+          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+          <Outlet />
+        </AuthGate>
+      </AuthProvider>
       <Toaster position="top-center" />
     </QueryClientProvider>
   );
+}
+
+const PUBLIC_ROUTES = new Set(["/login"]);
+
+/**
+ * Gates every route behind a signed-in, onboarded session. Unauthenticated visitors
+ * are sent to /login; signed-in visitors who haven't finished the questionnaire are
+ * sent to /onboarding. Real data access is still enforced server-side by RLS — this
+ * is just what decides what the app shows.
+ */
+function AuthGate({ children }: { children: ReactNode }) {
+  const { loading, session, profile } = useAuth();
+  const navigate = useNavigate();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+
+  useEffect(() => {
+    if (loading) return;
+    if (!session) {
+      if (!PUBLIC_ROUTES.has(pathname)) void navigate({ to: "/login" });
+      return;
+    }
+    if (profile && !profile.onboarded) {
+      if (pathname !== "/onboarding") void navigate({ to: "/onboarding" });
+      return;
+    }
+    if (profile?.onboarded && (pathname === "/login" || pathname === "/onboarding")) {
+      void navigate({ to: "/" });
+    }
+  }, [loading, session, profile, pathname, navigate]);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Sparkles className="h-6 w-6 animate-pulse text-primary" aria-hidden="true" />
+      </div>
+    );
+  }
+
+  if (!session) {
+    return PUBLIC_ROUTES.has(pathname) ? <>{children}</> : null;
+  }
+
+  if (profile && !profile.onboarded) {
+    return pathname === "/onboarding" ? <>{children}</> : null;
+  }
+
+  return <>{children}</>;
 }

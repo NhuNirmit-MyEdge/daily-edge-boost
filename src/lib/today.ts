@@ -159,7 +159,7 @@ export async function saveQuizResponse(input: {
       selected_index: input.selectedIndex,
       correct: input.correct,
     },
-    { onConflict: "entry_date,question_index" },
+    { onConflict: "user_id,entry_date,question_index" },
   );
   if (error) throw error;
 }
@@ -181,7 +181,7 @@ export async function completeTask(entryDate: string) {
       completed: true,
       completed_at: new Date().toISOString(),
     },
-    { onConflict: "entry_date" },
+    { onConflict: "user_id,entry_date" },
   );
   if (error) throw error;
 }
@@ -201,7 +201,7 @@ export async function saveReflection(entryDate: string, answer: string) {
     .from("lesson_reflections")
     .upsert(
       { entry_date: entryDate, answer, updated_at: new Date().toISOString() },
-      { onConflict: "entry_date" },
+      { onConflict: "user_id,entry_date" },
     );
   if (error) throw error;
 }

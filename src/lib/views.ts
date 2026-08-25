@@ -9,7 +9,7 @@ export async function recordSectionView(section: string) {
   try {
     const { error } = await supabase
       .from("section_views")
-      .upsert({ section, view_date: isoDate(new Date()) }, { onConflict: "section,view_date" });
+      .upsert({ section, view_date: isoDate(new Date()) }, { onConflict: "user_id,section,view_date" });
     if (error) console.error("[views] couldn't record view:", error.message);
   } catch (err) {
     console.error("[views] couldn't record view:", err);
