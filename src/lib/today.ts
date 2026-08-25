@@ -51,6 +51,26 @@ export type VideoRecommendation = {
   duration_note?: string;
 };
 
+export type TermOfDay = {
+  category?: string;
+  term?: string;
+  definition?: string;
+  example_or_context?: string;
+};
+
+export type PerspectiveSide = {
+  label?: string;
+  argument?: string;
+};
+
+export type PerspectiveOfDay = {
+  category?: string;
+  question?: string;
+  perspective_one?: PerspectiveSide;
+  perspective_two?: PerspectiveSide;
+  closing_note?: string;
+};
+
 export type DailyEntry = {
   entry_date: string;
   news_brief: NewsItem[] | null;
@@ -59,6 +79,9 @@ export type DailyEntry = {
   quiz: QuizQuestion[] | null;
   influencers?: Influencer[] | null;
   video_recommendation?: VideoRecommendation | null;
+  term_of_the_day?: TermOfDay | null;
+  perspective_of_the_day?: PerspectiveOfDay | null;
+  updated_at?: string;
 };
 
 export function todayISO(): string {
@@ -356,6 +379,8 @@ export const EXPECTED_ENTRY_FIELDS = [
   "task",
   "influencers",
   "video_recommendation",
+  "term_of_the_day",
+  "perspective_of_the_day",
   "company_updates",
 ] as const;
 
@@ -508,6 +533,22 @@ export async function loadPastedEntry(text: string, fallbackDate: string): Promi
     "video",
   );
 
+  await saveField(
+    "term_of_the_day",
+    "term of the day",
+    "term_of_the_day",
+    o["term_of_the_day"] ?? null,
+    "term of the day",
+  );
+
+  await saveField(
+    "perspective_of_the_day",
+    "perspective of the day",
+    "perspective_of_the_day",
+    o["perspective_of_the_day"] ?? null,
+    "perspective of the day",
+  );
+
   // Company updates (separate table).
   if (!present("company_updates")) {
     fields.push({ key: "company_updates", label: "company updates", status: "missing" });
@@ -545,4 +586,111 @@ export async function loadPastedEntry(text: string, fallbackDate: string): Promi
     summary: `Loaded for ${formatDateShort(entryDate)}: ${parts.join(", ")}`,
     hasFailures: fields.some((f) => f.status === "failed"),
   };
+}
+
+/* ---------- Weekly / monthly summary ---------- */
+
+export async function fetchAllQuizResponses() {
+  const { data, error } = await supabase
+    .from("quiz_responses")
+    .select("entry_date, question_index, selected_index, correct");
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function fetchAllTaskCompletions() {
+  const { data, error } = await supabase
+    .from("task_completions")
+    .select("entry_date, completed, completed_at");
+  if (error) throw error;
+  return data ?? [];
+}
+
+export type SummaryWindow = {
+  label: string;
+  days: number;
+  entriesWithContent: number;
+  lessonsCovered: number;
+  quizAnswered: number;
+  quizCorrect: number;
+  quizAccuracy: number | null;
+  tasksCompleted: number;
+  taskCompletionRate: number | null;
+};
+
+function withinLastNDays(dateISO: string, n: number, today: string): boolean {
+  const start = new Date(today);
+  start.setDate(start.getDate() - (n - 1));
+  const startISO = new Date(start.getTime() - start.getTimezoneOffset() * 60000)
+    .toISOString()
+    .slice(0, 10);
+  return dateISO >= startISO && dateISO <= today;
+}
+
+/** Builds 7-day and 30-day rollups from already-fetched entries/responses/completions. */
+export function buildSummary(
+  entries: DailyEntry[],
+  quizResponses: { entry_date: string; correct: boolean }[],
+  taskCompletions: { entry_date: string; completed: boolean }[],
+): SummaryWindow[] {
+  const today = todayISO();
+  return [7, 30].map((n) => {
+    const inWindow = (d: string) => withinLastNDays(d, n, today);
+    const windowEntries = entries.filter((e) => inWindow(e.entry_date));
+    const entriesWithContent = windowEntries.filter(
+      (e) => (e.news_brief?.length ?? 0) > 0 || Boolean(e.lesson?.title),
+    ).length;
+    const lessonsCovered = windowEntries.filter((e) => Boolean(e.lesson?.title)).length;
+
+    const windowQuiz = quizResponses.filter((r) => inWindow(r.entry_date));
+    const quizAnswered = windowQuiz.length;
+    const quizCorrect = windowQuiz.filter((r) => r.correct).length;
+
+    const windowTasks = taskCompletions.filter((t) => inWindow(t.entry_date) && t.completed);
+    const daysWithTask = windowEntries.filter((e) => Boolean(e.task)).length;
+
+    return {
+      label: n === 7 ? "Last 7 days" : "Last 30 days",
+      days: n,
+      entriesWithContent,
+      lessonsCovered,
+      quizAnswered,
+      quizCorrect,
+      quizAccuracy: quizAnswered > 0 ? quizCorrect / quizAnswered : null,
+      tasksCompleted: windowTasks.length,
+      taskCompletionRate: daysWithTask > 0 ? windowTasks.length / daysWithTask : null,
+    };
+  });
+}
+
+/* ---------- Data export ---------- */
+
+export async function buildExportPayload() {
+  const [entries, quizResponses, taskCompletions, profile] = await Promise.all([
+    fetchAllDailyEntries(),
+    fetchAllQuizResponses(),
+    fetchAllTaskCompletions(),
+    fetchProfile(),
+  ]);
+  return {
+    exported_at: new Date().toISOString(),
+    profile,
+    daily_entries: entries,
+    quiz_responses: quizResponses,
+    task_completions: taskCompletions,
+  };
+}
+
+/** Triggers a browser download of the full MyEdge history as a JSON file. */
+export async function downloadMyEdgeData() {
+  const payload = await buildExportPayload();
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `myedge-export-${todayISO()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }

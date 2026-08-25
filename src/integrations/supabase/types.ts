@@ -77,8 +77,11 @@ export type Database = {
           influencers: Json
           lesson: Json | null
           news_brief: Json
+          perspective_of_the_day: Json | null
           quiz: Json
           task: string | null
+          term_of_the_day: Json | null
+          updated_at: string
           video_recommendation: Json | null
         }
         Insert: {
@@ -87,8 +90,11 @@ export type Database = {
           influencers?: Json
           lesson?: Json | null
           news_brief?: Json
+          perspective_of_the_day?: Json | null
           quiz?: Json
           task?: string | null
+          term_of_the_day?: Json | null
+          updated_at?: string
           video_recommendation?: Json | null
         }
         Update: {
@@ -97,8 +103,11 @@ export type Database = {
           influencers?: Json
           lesson?: Json | null
           news_brief?: Json
+          perspective_of_the_day?: Json | null
           quiz?: Json
           task?: string | null
+          term_of_the_day?: Json | null
+          updated_at?: string
           video_recommendation?: Json | null
         }
         Relationships: []
@@ -112,6 +121,7 @@ export type Database = {
           name: string
           relevance_note: string | null
           start_date: string | null
+          starred: boolean
         }
         Insert: {
           created_at?: string
@@ -121,6 +131,7 @@ export type Database = {
           name: string
           relevance_note?: string | null
           start_date?: string | null
+          starred?: boolean
         }
         Update: {
           created_at?: string
@@ -130,6 +141,7 @@ export type Database = {
           name?: string
           relevance_note?: string | null
           start_date?: string | null
+          starred?: boolean
         }
         Relationships: []
       }

@@ -50,9 +50,10 @@ export function PasteEntryCard({
           Expects these top-level fields: entry_date, news_brief (10 stories — each with category,
           headline, what_happened, why_it_matters, why_it_matters_to_you, watch_next), lesson, quiz
           (array of 5 questions — category, question, options, correct_index, explanation), task, influencers (name, why_relevant),
-          video_recommendation (title, url, duration_note) and company_updates (company_name,
-          entry_date, headline, summary, source_url). Every field present is saved independently —
-          you&apos;ll get a per-field confirmation below.
+          video_recommendation (title, url, duration_note), term_of_the_day (category, term, definition,
+          example_or_context), perspective_of_the_day (category, question, perspective_one, perspective_two,
+          closing_note) and company_updates (company_name, entry_date, headline, summary, source_url).
+          Every field present is saved independently — you&apos;ll get a per-field confirmation below.
         </p>
 
         <textarea

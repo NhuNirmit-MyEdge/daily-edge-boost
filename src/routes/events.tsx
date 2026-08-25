@@ -1,12 +1,15 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Star } from "lucide-react";
 
 import { BulkImportBox } from "@/components/today/BulkImportBox";
+import { Button } from "@/components/ui/button";
 import { EmptyState, PageShell } from "@/components/today/SectionPage";
 import {
   REGIONS,
   SECTORS,
+  downloadICS,
   eventDayRange,
   eventDescription,
   eventMonthKey,
@@ -16,6 +19,7 @@ import {
   fetchEvents,
   isPastEvent,
   parseEventsJSON,
+  setEventStarred,
   upsertEvents,
   type EventItem,
 } from "@/lib/tracking";
@@ -63,7 +67,7 @@ function Chip({
   );
 }
 
-function EventRow({ event }: { event: EventItem }) {
+function EventRow({ event, onToggleStar }: { event: EventItem; onToggleStar: (event: EventItem) => void }) {
   const past = isPastEvent(event);
   const sectors = eventSectors(event);
   const description = eventDescription(event);
@@ -87,7 +91,21 @@ function EventRow({ event }: { event: EventItem }) {
           className="absolute -left-[4.5px] top-4 h-2 w-2 rounded-full bg-primary"
         />
         <div className="rounded-2xl border border-border bg-card p-3">
-          <h3 className="text-sm font-semibold leading-snug">{event.name}</h3>
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="text-sm font-semibold leading-snug">{event.name}</h3>
+            <button
+              type="button"
+              onClick={() => onToggleStar(event)}
+              aria-pressed={event.starred}
+              aria-label={event.starred ? "Unstar this event" : "Star this event"}
+              className="shrink-0 -mr-1 -mt-1 rounded-full p-1 text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <Star
+                className={`h-4 w-4 ${event.starred ? "fill-primary text-primary" : ""}`}
+                aria-hidden="true"
+              />
+            </button>
+          </div>
           {event.location ? (
             <p className="mt-0.5 text-xs text-muted-foreground">{event.location}</p>
           ) : null}
@@ -122,6 +140,20 @@ function EventsPage() {
   const eventsQuery = useQuery({ queryKey: ["events"], queryFn: fetchEvents });
   const [sector, setSector] = useState<string | null>(null);
   const [region, setRegion] = useState<string | null>(null);
+
+  const starredEvents = (eventsQuery.data ?? []).filter((e) => e.starred);
+
+  const onToggleStar = async (event: EventItem) => {
+    const next = !event.starred;
+    queryClient.setQueryData<EventItem[]>(["events"], (prev) =>
+      (prev ?? []).map((e) => (e.id === event.id ? { ...e, starred: next } : e)),
+    );
+    try {
+      await setEventStarred(event.id, next);
+    } catch {
+      await queryClient.invalidateQueries({ queryKey: ["events"] });
+    }
+  };
 
   const groups = useMemo(() => {
     const list = (eventsQuery.data ?? [])
@@ -167,6 +199,18 @@ function EventsPage() {
         </div>
       </div>
 
+      <Button
+        variant="outline"
+        size="sm"
+        className="mt-3 w-full"
+        disabled={starredEvents.length === 0}
+        onClick={() => downloadICS(starredEvents)}
+      >
+        {starredEvents.length === 0
+          ? "Star events to export them to your calendar"
+          : `Export ${starredEvents.length} starred event${starredEvents.length === 1 ? "" : "s"} (.ics)`}
+      </Button>
+
       <div className="mt-5">
         {eventsQuery.isLoading ? (
           <div className="space-y-3">
@@ -188,7 +232,7 @@ function EventsPage() {
                 </h2>
                 <ul className="mt-1">
                   {group.items.map((event) => (
-                    <EventRow key={event.id} event={event} />
+                    <EventRow key={event.id} event={event} onToggleStar={onToggleStar} />
                   ))}
                 </ul>
               </section>

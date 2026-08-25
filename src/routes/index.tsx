@@ -2,14 +2,17 @@ import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
+  BarChart3,
   BookOpen,
   Building2,
   CalendarDays,
   ChevronRight,
   ClipboardPaste,
   HelpCircle,
+  Lightbulb,
   Newspaper,
   Play,
+  Quote,
   Target,
   Users,
 } from "lucide-react";
@@ -41,10 +44,13 @@ const SECTIONS = [
   { to: "/learn", label: "Let's Learn", icon: BookOpen, blurb: "Today's lesson" },
   { to: "/action", label: "Today's Action", icon: Target, blurb: "One thing to do" },
   { to: "/quiz", label: "Quiz", icon: HelpCircle, blurb: "5 questions" },
+  { to: "/term", label: "Term of the Day", icon: Lightbulb, blurb: "One concept, explained" },
+  { to: "/perspective", label: "Perspective of the Day", icon: Quote, blurb: "Both sides of a live debate" },
   { to: "/companies", label: "Companies to Follow", icon: Building2, blurb: "Tracked updates" },
   { to: "/influencers", label: "Influencers to Follow", icon: Users, blurb: "2 people today" },
   { to: "/video", label: "Video Recommendation", icon: Play, blurb: "Under 20 minutes" },
   { to: "/events", label: "Events & Conferences", icon: CalendarDays, blurb: "2026 calendar" },
+  { to: "/summary", label: "Your Progress", icon: BarChart3, blurb: "Weekly & monthly summary" },
   { to: "/load", label: "Load Today", icon: ClipboardPaste, blurb: "Paste today's content" },
 ] as const;
 
@@ -62,6 +68,11 @@ function Today() {
 
   const ready = Boolean(entryQuery.data);
   const streak = profileQuery.data?.streak_count ?? 0;
+  const updatedAt = entryQuery.data?.updated_at;
+  const lastUpdatedLabel =
+    mounted && updatedAt
+      ? new Date(updatedAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
+      : null;
 
   return (
     <main className="mx-auto w-full max-w-md px-4 pb-16 pt-10">
@@ -79,6 +90,11 @@ function Today() {
           : ready
             ? `Today's edge is ready · ${streak} day streak`
             : "Today's edge is still being prepared — use Load Today to paste it in."}
+        {lastUpdatedLabel ? (
+          <span className="mt-1 block text-xs text-muted-foreground/80">
+            Last updated {lastUpdatedLabel}
+          </span>
+        ) : null}
       </p>
 
       <nav className="mt-6 grid grid-cols-2 gap-3">

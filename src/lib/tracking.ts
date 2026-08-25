@@ -17,6 +17,7 @@ export type EventItem = {
   end_date: string | null;
   location: string | null;
   relevance_note: string | null;
+  starred: boolean;
 };
 
 export async function fetchCompanies(): Promise<Company[]> {
@@ -57,10 +58,15 @@ export async function deleteCompany(id: string) {
 export async function fetchEvents(): Promise<EventItem[]> {
   const { data, error } = await supabase
     .from("events")
-    .select("id, name, start_date, end_date, location, relevance_note")
+    .select("id, name, start_date, end_date, location, relevance_note, starred")
     .order("start_date", { ascending: true, nullsFirst: false });
   if (error) throw error;
   return (data ?? []) as EventItem[];
+}
+
+export async function setEventStarred(id: string, starred: boolean) {
+  const { error } = await supabase.from("events").update({ starred }).eq("id", id);
+  if (error) throw error;
 }
 
 export type ParsedEvent = {
@@ -337,6 +343,61 @@ export function eventMonthLabel(event: EventItem): string {
   if (!d) return "Dates TBC";
   const p = parts(d);
   return new Date(p.y, p.m, 1).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+}
+
+/* ---------- Starred events calendar (.ics) export ---------- */
+
+function icsEscape(text: string): string {
+  return text.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n");
+}
+
+function icsDate(dateISO: string): string {
+  return dateISO.replace(/-/g, "");
+}
+
+/** All-day event end dates in .ics are exclusive, so the day after the last day. */
+function icsEndDate(dateISO: string): string {
+  const [y, m, d] = dateISO.split("-").map(Number);
+  const dt = new Date(y ?? 1970, (m ?? 1) - 1, (d ?? 1) + 1);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${dt.getFullYear()}${pad(dt.getMonth() + 1)}${pad(dt.getDate())}`;
+}
+
+/** Builds a standards-compliant .ics calendar from a list of events (all-day entries). */
+export function buildICS(events: EventItem[]): string {
+  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//MyEdge//Events//EN", "CALSCALE:GREGORIAN"];
+  const stamp = new Date().toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+  for (const event of events) {
+    const start = event.start_date ?? event.end_date;
+    if (!start) continue;
+    const end = event.end_date ?? event.start_date ?? start;
+    lines.push(
+      "BEGIN:VEVENT",
+      `UID:${event.id}@myedge`,
+      `DTSTAMP:${stamp}`,
+      `DTSTART;VALUE=DATE:${icsDate(start)}`,
+      `DTEND;VALUE=DATE:${icsEndDate(end)}`,
+      `SUMMARY:${icsEscape(event.name)}`,
+      ...(event.location ? [`LOCATION:${icsEscape(event.location)}`] : []),
+      ...(eventDescription(event) ? [`DESCRIPTION:${icsEscape(eventDescription(event))}`] : []),
+      "END:VEVENT",
+    );
+  }
+  lines.push("END:VCALENDAR");
+  return lines.join("\r\n");
+}
+
+/** Triggers a browser download of a .ics file built from the given events. */
+export function downloadICS(events: EventItem[], filename = "myedge-events.ics") {
+  const blob = new Blob([buildICS(events)], { type: "text/calendar" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 /** Compact day range for the timeline spine: "10", "18–21", "29 Sep–2 Oct". */
