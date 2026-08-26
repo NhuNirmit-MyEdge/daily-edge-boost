@@ -47,13 +47,14 @@ export function PasteEntryCard({
           Paste today&apos;s MyEdge content
         </label>
         <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-          Expects these top-level fields: entry_date, news_brief (10 stories — each with category,
-          headline, what_happened, why_it_matters, why_it_matters_to_you, watch_next), lesson, quiz
-          (array of 5 questions — category, question, options, correct_index, explanation), task, influencers (name, why_relevant),
-          video_recommendation (title, url, duration_note), term_of_the_day (category, term, definition,
-          example_or_context), perspective_of_the_day (category, question, perspective_one, perspective_two,
-          closing_note) and company_updates (company_name, entry_date, headline, summary, source_url).
-          Every field present is saved independently — you&apos;ll get a per-field confirmation below.
+          Expects a top-level entry_date plus a <code>users</code> array — one object per
+          signed-up person, each with their email and their own news_brief (category, headline,
+          what_happened, why_it_matters, why_it_matters_to_you, watch_next), lesson, quiz (5
+          questions), task, influencers, video_recommendation, term_of_the_day and
+          perspective_of_the_day, tailored to that person&apos;s interests. company_updates stays a
+          single shared list at the top level, outside the users array — those facts are the same
+          for everyone tracking that company. Every field, for every person, saves independently —
+          one person or one field failing never blocks the rest.
         </p>
 
         <textarea
@@ -62,7 +63,7 @@ export function PasteEntryCard({
           onChange={(e) => setText(e.target.value)}
           rows={8}
           spellCheck={false}
-          placeholder={'{"entry_date":"2026-08-21","news_brief":[…],"lesson":{},"quiz":[{"question":"…","options":["a","b","c","d"],"correct_index":0,"explanation":"…"}],"task":"…","influencers":[],"video_recommendation":{},"company_updates":[]}'}
+          placeholder={'{"entry_date":"2026-08-27","users":[{"email":"person@example.com","news_brief":[…],"lesson":{},"quiz":[{"question":"…","options":["a","b","c","d"],"correct_index":0,"explanation":"…"}],"task":"…","influencers":[],"video_recommendation":{}}],"company_updates":[]}'}
           className="mt-2 w-full rounded-xl border border-border bg-background p-3 font-mono text-xs leading-relaxed outline-none focus:ring-2 focus:ring-ring"
         />
         {error ? (
@@ -74,23 +75,42 @@ export function PasteEntryCard({
         {report ? (
           <div className="mt-3 rounded-xl border border-border bg-background p-3">
             <p className="text-xs font-medium">{report.summary}</p>
-            <ul className="mt-2 space-y-1">
-              {report.fields.map((f) => (
-                <li
-                  key={f.key}
-                  className={
-                    f.status === "failed"
-                      ? "text-xs text-destructive"
-                      : f.status === "missing"
-                        ? "text-xs text-muted-foreground"
-                        : "text-xs text-foreground/85"
-                  }
-                >
-                  {f.status === "ok" ? "✓" : f.status === "failed" ? "✗" : "—"} {f.label}
-                  {f.detail && f.detail !== f.label ? ` · ${f.detail}` : ""}
-                </li>
+
+            <div className="mt-3 space-y-3">
+              {report.users.map((u, i) => (
+                <div key={`${u.email}-${i}`}>
+                  <p className="text-xs font-semibold">{u.matched ? u.email : `${u.email} — not saved`}</p>
+                  <ul className="mt-1 space-y-1">
+                    {u.fields.map((f) => (
+                      <li
+                        key={f.key}
+                        className={
+                          f.status === "failed"
+                            ? "text-xs text-destructive"
+                            : f.status === "missing"
+                              ? "text-xs text-muted-foreground"
+                              : "text-xs text-foreground/85"
+                        }
+                      >
+                        {f.status === "ok" ? "✓" : f.status === "failed" ? "✗" : "—"} {f.label}
+                        {f.detail && f.detail !== f.label ? ` · ${f.detail}` : ""}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               ))}
-            </ul>
+            </div>
+
+            <p
+              className={`mt-3 text-xs ${report.companyUpdates.status === "failed" ? "text-destructive" : "text-foreground/85"}`}
+            >
+              {report.companyUpdates.status === "ok" ? "✓" : report.companyUpdates.status === "failed" ? "✗" : "—"}{" "}
+              {report.companyUpdates.label}
+              {report.companyUpdates.detail && report.companyUpdates.detail !== report.companyUpdates.label
+                ? ` · ${report.companyUpdates.detail}`
+                : ""}
+            </p>
+
             {report.entryDate !== todayISO() ? (
               <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
                 Note: this was saved for {report.entryDate}, not today ({todayISO()}), so the

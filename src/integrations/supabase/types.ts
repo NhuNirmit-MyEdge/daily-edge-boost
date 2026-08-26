@@ -82,6 +82,7 @@ export type Database = {
           task: string | null
           term_of_the_day: Json | null
           updated_at: string
+          user_id: string | null
           video_recommendation: Json | null
         }
         Insert: {
@@ -95,6 +96,7 @@ export type Database = {
           task?: string | null
           term_of_the_day?: Json | null
           updated_at?: string
+          user_id?: string | null
           video_recommendation?: Json | null
         }
         Update: {
@@ -108,6 +110,7 @@ export type Database = {
           task?: string | null
           term_of_the_day?: Json | null
           updated_at?: string
+          user_id?: string | null
           video_recommendation?: Json | null
         }
         Relationships: []
@@ -215,39 +218,68 @@ export type Database = {
       }
       user_profiles: {
         Row: {
+          age_range: string | null
           created_at: string
           email: string
-          experience_level: string | null
           focus_topics: string[]
+          gender: string | null
           id: string
           is_admin: boolean
+          name: string | null
           onboarded: boolean
-          role_title: string | null
           updated_at: string
         }
         Insert: {
+          age_range?: string | null
           created_at?: string
           email: string
-          experience_level?: string | null
           focus_topics?: string[]
+          gender?: string | null
           id: string
           is_admin?: boolean
+          name?: string | null
           onboarded?: boolean
-          role_title?: string | null
           updated_at?: string
         }
         Update: {
+          age_range?: string | null
           created_at?: string
           email?: string
-          experience_level?: string | null
           focus_topics?: string[]
+          gender?: string | null
           id?: string
           is_admin?: boolean
+          name?: string | null
           onboarded?: boolean
-          role_title?: string | null
           updated_at?: string
         }
         Relationships: []
+      }
+      user_tracked_companies: {
+        Row: {
+          company_id: string
+          created_at: string
+          user_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          user_id?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_tracked_companies_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       section_views: {
         Row: {

@@ -12,6 +12,7 @@ import {
   downloadICS,
   eventDayRange,
   eventDescription,
+  eventMatchesInterests,
   eventMonthKey,
   eventMonthLabel,
   eventRegion,
@@ -145,6 +146,10 @@ function EventsPage() {
   const [region, setRegion] = useState<string | null>(null);
 
   const starredEvents = (eventsQuery.data ?? []).filter((e) => e.starred);
+  const recommended = (eventsQuery.data ?? [])
+    .filter((e) => !isPastEvent(e) && eventMatchesInterests(e, profile?.focus_topics ?? []))
+    .sort((a, b) => (a.start_date ?? "9999").localeCompare(b.start_date ?? "9999"))
+    .slice(0, 3);
 
   const onToggleStar = async (event: EventItem) => {
     const next = !event.starred;
@@ -177,6 +182,20 @@ function EventsPage() {
 
   return (
     <PageShell title="Events" section="events">
+      {recommended.length > 0 ? (
+        <div className="mb-4 rounded-2xl border border-primary/30 bg-primary/5 p-3">
+          <p className="eyebrow">Matches your interests</p>
+          <ul className="mt-2 space-y-1.5">
+            {recommended.map((e) => (
+              <li key={e.id} className="flex items-center justify-between gap-2 text-sm">
+                <span className="truncate">{e.name}</span>
+                <span className="shrink-0 text-xs text-muted-foreground">{eventDayRange(e)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       <div className="-mx-4 space-y-2 px-4">
         <div className="flex gap-1.5 overflow-x-auto pb-1">
           <Chip label="All sectors" active={sector === null} onClick={() => setSector(null)} />

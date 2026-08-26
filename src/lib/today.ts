@@ -99,20 +99,39 @@ export function formatToday(dateISO: string): string {
   });
 }
 
+/**
+ * Every signed-in user (including the admin) only ever sees their OWN daily entry —
+ * daily_entries now holds one row per (user, date), not one shared row per date. RLS
+ * already restricts what an admin *could* see to every row, so this filters
+ * explicitly rather than relying on RLS alone, otherwise an admin browsing their own
+ * home screen could pull back more than one row for the same date and error out.
+ */
+async function currentUserId(): Promise<string | null> {
+  const { data, error } = await supabase.auth.getUser();
+  if (error) throw error;
+  return data.user?.id ?? null;
+}
+
 export async function fetchDailyEntry(entryDate: string) {
+  const uid = await currentUserId();
+  if (!uid) return null;
   const { data, error } = await supabase
     .from("daily_entries")
     .select("*")
     .eq("entry_date", entryDate)
+    .eq("user_id", uid)
     .maybeSingle();
   if (error) throw error;
   return (data as DailyEntry | null) ?? null;
 }
 
 export async function fetchAllDailyEntries(): Promise<DailyEntry[]> {
+  const uid = await currentUserId();
+  if (!uid) return [];
   const { data, error } = await supabase
     .from("daily_entries")
     .select("*")
+    .eq("user_id", uid)
     .order("entry_date", { ascending: false });
   if (error) throw error;
   return (data ?? []) as DailyEntry[];
@@ -208,59 +227,6 @@ export async function saveReflection(entryDate: string, answer: string) {
 
 export class EntryParseError extends Error {}
 
-export function parseEntryJSON(text: string, fallbackDate: string): DailyEntry {
-  let raw: unknown;
-  try {
-    raw = JSON.parse(text);
-  } catch {
-    throw new EntryParseError("That doesn't look like valid JSON. Check for missing quotes, commas or brackets.");
-  }
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
-    throw new EntryParseError("Expected a JSON object with keys like entry_date, news_brief and quiz.");
-  }
-  const o = raw as Record<string, unknown>;
-
-  const entry_date = typeof o["entry_date"] === "string" && /^\d{4}-\d{2}-\d{2}$/.test(o["entry_date"] as string)
-    ? (o["entry_date"] as string)
-    : fallbackDate;
-
-  if (o["entry_date"] !== undefined && entry_date !== o["entry_date"]) {
-    throw new EntryParseError("entry_date must be a date string in YYYY-MM-DD format.");
-  }
-  if (!Array.isArray(o["news_brief"])) {
-    throw new EntryParseError("news_brief is missing or is not a list of news items.");
-  }
-  const news = o["news_brief"] as unknown[];
-  const badItem = news.findIndex(
-    (n) => !n || typeof n !== "object" || Array.isArray(n) || !(n as Record<string, unknown>)["headline"],
-  );
-  if (badItem !== -1) {
-    throw new EntryParseError(
-      `News story ${badItem + 1} is missing a headline or isn't a JSON object.`,
-    );
-  }
-  if (!Array.isArray(o["quiz"])) {
-    throw new EntryParseError("quiz is missing or is not a list of questions.");
-  }
-  if (o["task"] !== undefined && o["task"] !== null && typeof o["task"] !== "string") {
-    throw new EntryParseError("task must be text.");
-  }
-
-  return {
-    entry_date,
-    news_brief: o["news_brief"] as NewsItem[],
-    lesson: (o["lesson"] as Lesson | undefined) ?? null,
-    task: (o["task"] as string | undefined) ?? null,
-    quiz: o["quiz"] as QuizQuestion[],
-    influencers: Array.isArray(o["influencers"]) ? (o["influencers"] as Influencer[]) : [],
-    video_recommendation:
-      o["video_recommendation"] && typeof o["video_recommendation"] === "object" &&
-      !Array.isArray(o["video_recommendation"])
-        ? (o["video_recommendation"] as VideoRecommendation)
-        : null,
-  };
-}
-
 export type PastedCompanyUpdate = {
   company_name: string;
   entry_date: string;
@@ -327,22 +293,6 @@ export async function applyCompanyUpdates(updates: PastedCompanyUpdate[]): Promi
   return rows.length;
 }
 
-export async function upsertDailyEntry(entry: DailyEntry) {
-  const { error } = await supabase.from("daily_entries").upsert(
-    {
-      entry_date: entry.entry_date,
-      news_brief: entry.news_brief ?? [],
-      lesson: entry.lesson,
-      task: entry.task,
-      quiz: entry.quiz ?? [],
-      influencers: entry.influencers ?? [],
-      video_recommendation: entry.video_recommendation ?? null,
-    },
-    { onConflict: "entry_date" },
-  );
-  if (error) throw error;
-}
-
 /* ---------- Robust field-by-field load ---------- */
 
 function errText(err: unknown): string {
@@ -364,25 +314,20 @@ export type FieldStatus = {
   detail?: string;
 };
 
+/** One person's slice of a paste: which of their fields saved, or why they were skipped entirely. */
+export type UserLoadResult = {
+  email: string;
+  matched: boolean;
+  fields: FieldStatus[];
+};
+
 export type LoadReport = {
   entryDate: string;
-  fields: FieldStatus[];
+  users: UserLoadResult[];
+  companyUpdates: FieldStatus;
   summary: string;
   hasFailures: boolean;
 };
-
-export const EXPECTED_ENTRY_FIELDS = [
-  "entry_date",
-  "news_brief",
-  "lesson",
-  "quiz",
-  "task",
-  "influencers",
-  "video_recommendation",
-  "term_of_the_day",
-  "perspective_of_the_day",
-  "company_updates",
-] as const;
 
 /** Accepts common variants for quiz questions and returns a normalised list. */
 export function normalizeQuiz(raw: unknown): QuizQuestion[] {
@@ -427,84 +372,56 @@ export function normalizeQuiz(raw: unknown): QuizQuestion[] {
   return out;
 }
 
-async function updateEntryField(entryDate: string, column: string, value: unknown) {
+async function updateEntryField(userId: string, entryDate: string, column: string, value: unknown) {
   const { error } = await supabase
     .from("daily_entries")
     .update({ [column]: value } as never)
+    .eq("user_id", userId)
     .eq("entry_date", entryDate);
   if (error) throw error;
 }
 
-/**
- * Parses pasted JSON, saves each present field independently and reports on every field.
- * One field failing never blocks the others.
- */
-export async function loadPastedEntry(text: string, fallbackDate: string): Promise<LoadReport> {
-  let raw: unknown;
-  try {
-    raw = JSON.parse(text);
-  } catch {
-    throw new EntryParseError(
-      "That doesn't look like valid JSON. Check for missing quotes, commas or brackets.",
-    );
-  }
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
-    throw new EntryParseError("Expected a JSON object with keys like entry_date, news_brief and quiz.");
-  }
-  const o = raw as Record<string, unknown>;
-
-  const rawDate = o["entry_date"];
-  if (rawDate !== undefined && (typeof rawDate !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(rawDate))) {
-    throw new EntryParseError("entry_date must be a date string in YYYY-MM-DD format.");
-  }
-  const entryDate = (rawDate as string | undefined) ?? fallbackDate;
-
+/** Builds one person's field-by-field save, reusing the same "one field failing never blocks the rest" approach. */
+async function loadPastedEntryForUser(
+  email: string,
+  userId: string,
+  entryDate: string,
+  u: Record<string, unknown>,
+): Promise<UserLoadResult> {
   const fields: FieldStatus[] = [];
-  const present = (key: string) => o[key] !== undefined && o[key] !== null;
+  const present = (key: string) => u[key] !== undefined && u[key] !== null;
 
-  // Ensure the row exists before any per-field update.
   const { error: baseError } = await supabase
     .from("daily_entries")
-    .upsert({ entry_date: entryDate }, { onConflict: "entry_date" });
-  if (baseError) throw baseError;
+    .upsert({ user_id: userId, entry_date: entryDate }, { onConflict: "user_id,entry_date" });
+  if (baseError) {
+    return {
+      email,
+      matched: true,
+      fields: [{ key: "_row", label: "entry", status: "failed", detail: errText(baseError) }],
+    };
+  }
 
-  fields.push(
-    rawDate
-      ? { key: "entry_date", label: "date", status: "ok" }
-      : { key: "entry_date", label: "date", status: "ok", detail: "defaulted to today" },
-  );
-
-  const saveField = async (
-    key: string,
-    label: string,
-    column: string,
-    value: unknown,
-    detail?: string,
-  ) => {
+  const saveField = async (key: string, label: string, column: string, value: unknown, detail?: string) => {
     if (!present(key)) {
       fields.push({ key, label, status: "missing" });
       return;
     }
     try {
-      await updateEntryField(entryDate, column, value);
+      await updateEntryField(userId, entryDate, column, value);
       fields.push({ key, label, status: "ok", detail: detail ?? "" });
     } catch (err) {
-      fields.push({
-        key,
-        label,
-        status: "failed",
-        detail: errText(err),
-      });
+      fields.push({ key, label, status: "failed", detail: errText(err) });
     }
   };
 
-  const news = Array.isArray(o["news_brief"]) ? (o["news_brief"] as NewsItem[]) : [];
+  const news = Array.isArray(u["news_brief"]) ? (u["news_brief"] as NewsItem[]) : [];
   await saveField("news_brief", "news items", "news_brief", news, `${news.length} news items`);
 
-  await saveField("lesson", "lesson", "lesson", o["lesson"] ?? null, "lesson");
-  await saveField("task", "task", "task", typeof o["task"] === "string" ? o["task"] : String(o["task"] ?? ""), "task");
+  await saveField("lesson", "lesson", "lesson", u["lesson"] ?? null, "lesson");
+  await saveField("task", "task", "task", typeof u["task"] === "string" ? u["task"] : String(u["task"] ?? ""), "task");
 
-  const quiz = normalizeQuiz(o["quiz"]);
+  const quiz = normalizeQuiz(u["quiz"]);
   if (present("quiz") && quiz.length === 0) {
     fields.push({
       key: "quiz",
@@ -516,75 +433,125 @@ export async function loadPastedEntry(text: string, fallbackDate: string): Promi
     await saveField("quiz", "quiz", "quiz", quiz, `quiz (${quiz.length} questions)`);
   }
 
-  const influencers = Array.isArray(o["influencers"]) ? (o["influencers"] as Influencer[]) : [];
-  await saveField(
-    "influencers",
-    "influencers",
-    "influencers",
-    influencers,
-    `${influencers.length} influencers`,
-  );
+  const influencers = Array.isArray(u["influencers"]) ? (u["influencers"] as Influencer[]) : [];
+  await saveField("influencers", "influencers", "influencers", influencers, `${influencers.length} influencers`);
 
-  await saveField(
-    "video_recommendation",
-    "video",
-    "video_recommendation",
-    o["video_recommendation"] ?? null,
-    "video",
-  );
-
-  await saveField(
-    "term_of_the_day",
-    "term of the day",
-    "term_of_the_day",
-    o["term_of_the_day"] ?? null,
-    "term of the day",
-  );
-
+  await saveField("video_recommendation", "video", "video_recommendation", u["video_recommendation"] ?? null, "video");
+  await saveField("term_of_the_day", "term of the day", "term_of_the_day", u["term_of_the_day"] ?? null, "term of the day");
   await saveField(
     "perspective_of_the_day",
     "perspective of the day",
     "perspective_of_the_day",
-    o["perspective_of_the_day"] ?? null,
+    u["perspective_of_the_day"] ?? null,
     "perspective of the day",
   );
 
-  // Company updates (separate table).
-  if (!present("company_updates")) {
-    fields.push({ key: "company_updates", label: "company updates", status: "missing" });
+  return { email, matched: true, fields };
+}
+
+/**
+ * Parses one pasted JSON containing a "users" array — one block per signed-up
+ * person, matched by email — and saves each person's fields independently under
+ * their own account. company_updates stays a single shared block (companies'
+ * updates are the same facts for everyone who tracks them). One person's, or one
+ * field's, failure never blocks anyone else's.
+ */
+export async function loadPastedEntry(text: string, fallbackDate: string): Promise<LoadReport> {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch {
+    throw new EntryParseError(
+      "That doesn't look like valid JSON. Check for missing quotes, commas or brackets.",
+    );
+  }
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new EntryParseError("Expected a JSON object with an entry_date and a users array.");
+  }
+  const o = raw as Record<string, unknown>;
+
+  const rawDate = o["entry_date"];
+  if (rawDate !== undefined && (typeof rawDate !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(rawDate))) {
+    throw new EntryParseError("entry_date must be a date string in YYYY-MM-DD format.");
+  }
+  const entryDate = (rawDate as string | undefined) ?? fallbackDate;
+
+  const usersRaw = o["users"];
+  if (!Array.isArray(usersRaw) || usersRaw.length === 0) {
+    throw new EntryParseError(
+      'Expected a "users" array — one object per person, each with an "email" plus their content.',
+    );
+  }
+
+  const { data: profiles, error: profilesError } = await supabase.from("user_profiles").select("id, email");
+  if (profilesError) throw profilesError;
+  const byEmail = new Map<string, string>(
+    (profiles ?? []).map((p: { id: string; email: string }) => [p.email.trim().toLowerCase(), p.id]),
+  );
+
+  const userResults: UserLoadResult[] = [];
+  for (const item of usersRaw) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      userResults.push({
+        email: "(invalid entry)",
+        matched: false,
+        fields: [{ key: "_entry", label: "entry", status: "failed", detail: "not a JSON object" }],
+      });
+      continue;
+    }
+    const u = item as Record<string, unknown>;
+    const email = typeof u["email"] === "string" ? u["email"].trim() : "";
+    if (!email) {
+      userResults.push({
+        email: "(missing email)",
+        matched: false,
+        fields: [{ key: "_email", label: "email", status: "failed", detail: "missing an email field" }],
+      });
+      continue;
+    }
+    const uid = byEmail.get(email.toLowerCase());
+    if (!uid) {
+      userResults.push({
+        email,
+        matched: false,
+        fields: [{ key: "_account", label: "account", status: "failed", detail: "no signed-up account with this email yet" }],
+      });
+      continue;
+    }
+    userResults.push(await loadPastedEntryForUser(email, uid, entryDate, u));
+  }
+
+  // Company updates: one shared block, same as before.
+  let companyUpdates: FieldStatus;
+  if (o["company_updates"] === undefined || o["company_updates"] === null) {
+    companyUpdates = { key: "company_updates", label: "company updates", status: "missing" };
   } else {
     try {
       const applied = await applyCompanyUpdates(parseCompanyUpdatesJSON(text, entryDate));
-      fields.push({
-        key: "company_updates",
-        label: "company updates",
-        status: "ok",
-        detail: `${applied} company updates`,
-      });
+      companyUpdates = { key: "company_updates", label: "company updates", status: "ok", detail: `${applied} company updates` };
     } catch (err) {
-      fields.push({
-        key: "company_updates",
-        label: "company updates",
-        status: "failed",
-        detail: errText(err),
-      });
+      companyUpdates = { key: "company_updates", label: "company updates", status: "failed", detail: errText(err) };
     }
   }
 
-  const parts = fields
-    .filter((f) => f.key !== "entry_date")
-    .map((f) => {
-      const name = f.detail && f.status === "ok" && f.detail ? f.detail : f.label;
-      if (f.status === "ok") return `${name} ✓`;
-      if (f.status === "missing") return `${f.label} — (not in paste)`;
-      return `${f.label} ✗ (${f.detail ?? "failed to save"})`;
-    });
+  const matchedCount = userResults.filter((u) => u.matched).length;
+  const userLines = userResults.map((u) => {
+    if (!u.matched) return `${u.email} ✗ (${u.fields[0]?.detail ?? "skipped"})`;
+    const failed = u.fields.filter((f) => f.status === "failed");
+    return failed.length > 0 ? `${u.email} ✗ (${failed.map((f) => f.label).join(", ")})` : `${u.email} ✓`;
+  });
 
   return {
     entryDate,
-    fields,
-    summary: `Loaded for ${formatDateShort(entryDate)}: ${parts.join(", ")}`,
-    hasFailures: fields.some((f) => f.status === "failed"),
+    users: userResults,
+    companyUpdates,
+    summary:
+      `Loaded for ${formatDateShort(entryDate)} — ${matchedCount}/${userResults.length} accounts matched` +
+      (companyUpdates.status === "ok" ? `, ${companyUpdates.detail}` : "") +
+      `: ${userLines.join("; ")}`,
+    hasFailures:
+      userResults.some((u) => !u.matched || u.fields.some((f) => f.status === "failed")) ||
+      companyUpdates.status === "failed",
   };
 }
 

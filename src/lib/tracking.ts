@@ -55,6 +55,49 @@ export async function deleteCompany(id: string) {
   if (error) throw error;
 }
 
+/* ---------- Per-user tracked companies: which companies THIS person follows ---------- */
+
+export async function fetchMyTrackedCompanyIds(): Promise<Set<string>> {
+  // RLS scopes this to the signed-in user's own rows — no extra filter needed.
+  const { data, error } = await supabase.from("user_tracked_companies").select("company_id");
+  if (error) throw error;
+  return new Set((data ?? []).map((r: { company_id: string }) => r.company_id));
+}
+
+export async function trackCompany(companyId: string) {
+  const { error } = await supabase
+    .from("user_tracked_companies")
+    .upsert({ company_id: companyId }, { onConflict: "user_id,company_id" });
+  if (error) throw error;
+}
+
+export async function untrackCompany(companyId: string) {
+  const { error } = await supabase.from("user_tracked_companies").delete().eq("company_id", companyId);
+  if (error) throw error;
+}
+
+/** Replaces the signed-in user's full tracked-companies set with exactly this list. */
+export async function setTrackedCompanies(companyIds: string[]) {
+  const current = await fetchMyTrackedCompanyIds();
+  const next = new Set(companyIds);
+  const toAdd = companyIds.filter((id) => !current.has(id));
+  const toRemove = [...current].filter((id) => !next.has(id));
+
+  if (toAdd.length > 0) {
+    const { error } = await supabase
+      .from("user_tracked_companies")
+      .upsert(
+        toAdd.map((company_id) => ({ company_id })),
+        { onConflict: "user_id,company_id" },
+      );
+    if (error) throw error;
+  }
+  if (toRemove.length > 0) {
+    const { error } = await supabase.from("user_tracked_companies").delete().in("company_id", toRemove);
+    if (error) throw error;
+  }
+}
+
 export async function fetchEvents(): Promise<EventItem[]> {
   const [{ data, error }, { data: stars, error: starsError }] = await Promise.all([
     supabase
@@ -280,6 +323,26 @@ export function isPastEvent(event: EventItem): boolean {
     .toISOString()
     .slice(0, 10);
   return end < todayISOStr;
+}
+
+/**
+ * Loose keyword overlap between a person's interest categories and an event's
+ * sector tags — e.g. "Healthcare" overlaps "Digital Health" or "Health Tech" via
+ * the shared "health" root. Not a precise taxonomy match (the two lists were built
+ * separately), just enough to surface a "recommended for you" shortlist.
+ */
+function fuzzyOverlap(a: string, b: string): boolean {
+  const tokensOf = (s: string) => s.toLowerCase().split(/[^a-z0-9]+/).filter((t) => t.length >= 4);
+  const ta = tokensOf(a);
+  const tb = tokensOf(b);
+  return ta.some((x) => tb.some((y) => x.includes(y) || y.includes(x)));
+}
+
+export function eventMatchesInterests(event: EventItem, focusTopics: readonly string[]): boolean {
+  if (focusTopics.length === 0) return false;
+  const sectors = eventSectors(event);
+  if (sectors.length === 0) return false;
+  return focusTopics.some((topic) => sectors.some((sector) => fuzzyOverlap(topic, sector)));
 }
 
 /* ---------- Event sectors, regions and timeline helpers ---------- */
