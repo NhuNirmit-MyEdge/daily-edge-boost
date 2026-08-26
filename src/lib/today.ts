@@ -295,7 +295,7 @@ export async function applyCompanyUpdates(updates: PastedCompanyUpdate[]): Promi
 
 /* ---------- Robust field-by-field load ---------- */
 
-function errText(err: unknown): string {
+export function errText(err: unknown): string {
   if (err && typeof err === "object" && typeof (err as { message?: unknown }).message === "string") {
     return (err as { message: string }).message;
   }
