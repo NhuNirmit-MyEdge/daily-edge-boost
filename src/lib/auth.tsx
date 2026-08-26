@@ -3,18 +3,46 @@ import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 
 import { supabase } from "@/integrations/supabase/client";
 
+// Broad on purpose — covers many walks of career and life. Each person picks up
+// to MAX_FOCUS_TOPICS of these; News reorders itself around whichever ones overlap
+// with its own five categories (Healthcare, Technology, Business, Venture Capital,
+// Global Affairs — kept verbatim below so that matching still works).
 export const FOCUS_TOPICS = [
   "Healthcare",
   "Technology",
   "Business",
   "Venture Capital",
   "Global Affairs",
-  "Digital Health",
-  "Fintech",
-  "AI & Machine Learning",
+  "Finance & Investing",
+  "Law & Policy",
+  "Education",
+  "Marketing & Sales",
+  "Science & Research",
+  "Engineering",
+  "Design & Creative Arts",
+  "Media & Entertainment",
+  "Sports & Fitness",
+  "Travel & Hospitality",
+  "Food & Culinary",
+  "Real Estate & Construction",
+  "Manufacturing & Industry",
+  "Retail & E-commerce",
+  "Agriculture & Environment",
+  "Energy & Sustainability",
+  "Government & Public Service",
+  "Nonprofit & Social Impact",
+  "Parenting & Family",
+  "Personal Development & Wellness",
+  "Fashion & Beauty",
+  "Automotive & Transportation",
+  "Music & Arts",
 ] as const;
 
-export const EXPERIENCE_LEVELS = ["New to this", "Some experience", "Experienced"] as const;
+export const MAX_FOCUS_TOPICS = 5;
+
+export const AGE_RANGES = ["18-24", "25-34", "35-44", "45-54", "55-64", "65+"] as const;
+
+export const GENDER_OPTIONS = ["Woman", "Man", "Non-binary", "Prefer not to say"] as const;
 
 export type UserProfile = {
   id: string;
@@ -22,8 +50,9 @@ export type UserProfile = {
   is_admin: boolean;
   onboarded: boolean;
   focus_topics: string[];
-  experience_level: string | null;
-  role_title: string | null;
+  name: string | null;
+  age_range: string | null;
+  gender: string | null;
 };
 
 export async function signUp(email: string, password: string) {
@@ -46,16 +75,17 @@ export async function signOut() {
 export async function fetchMyProfile(): Promise<UserProfile | null> {
   const { data, error } = await supabase
     .from("user_profiles")
-    .select("id, email, is_admin, onboarded, focus_topics, experience_level, role_title")
+    .select("id, email, is_admin, onboarded, focus_topics, name, age_range, gender")
     .maybeSingle();
   if (error) throw error;
   return data;
 }
 
 export async function saveOnboarding(input: {
+  name: string;
+  ageRange: string;
+  gender: string;
   focusTopics: string[];
-  experienceLevel: string;
-  roleTitle: string;
 }) {
   const { data: sessionData } = await supabase.auth.getSession();
   const uid = sessionData.session?.user.id;
@@ -63,9 +93,10 @@ export async function saveOnboarding(input: {
   const { error } = await supabase
     .from("user_profiles")
     .update({
-      focus_topics: input.focusTopics,
-      experience_level: input.experienceLevel,
-      role_title: input.roleTitle || null,
+      name: input.name.trim() || null,
+      age_range: input.ageRange || null,
+      gender: input.gender || null,
+      focus_topics: input.focusTopics.slice(0, MAX_FOCUS_TOPICS),
       onboarded: true,
     })
     .eq("id", uid);
