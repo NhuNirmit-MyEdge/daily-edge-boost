@@ -2,7 +2,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { EntryParseError, loadPastedEntry, todayISO, type LoadReport } from "@/lib/today";
+import { EntryParseError, errText, loadPastedEntry, todayISO, type LoadReport } from "@/lib/today";
 import { SectionHeading } from "./SectionHeading";
 
 export function PasteEntryCard({
@@ -32,7 +32,7 @@ export function PasteEntryCard({
       if (err instanceof EntryParseError) {
         setError(err.message);
       } else {
-        setError("Couldn't save that content. Please try again.");
+        setError(`Couldn't save that content: ${errText(err)}`);
       }
     } finally {
       setBusy(false);
