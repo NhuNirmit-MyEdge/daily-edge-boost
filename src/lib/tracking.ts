@@ -1,7 +1,11 @@
 import { supabase } from "@/integrations/supabase/client";
+import { FOCUS_TOPICS } from "@/lib/auth";
 import { EntryParseError } from "@/lib/today";
 
 export type Company = { id: string; name: string; date_added: string };
+/** A personal, free-text tracked company that isn't part of the shared companies list —
+ * private to whoever added it, no update timeline, admin can't see or manage it. */
+export type CustomTrackedCompany = { id: string; name: string };
 export type CompanyUpdate = {
   id: string;
   company_id: string;
@@ -17,6 +21,7 @@ export type EventItem = {
   end_date: string | null;
   location: string | null;
   relevance_note: string | null;
+  categories: string[];
   starred: boolean;
 };
 
@@ -59,9 +64,44 @@ export async function deleteCompany(id: string) {
 
 export async function fetchMyTrackedCompanyIds(): Promise<Set<string>> {
   // RLS scopes this to the signed-in user's own rows — no extra filter needed.
-  const { data, error } = await supabase.from("user_tracked_companies").select("company_id");
+  // Custom (free-text) rows have a null company_id and are excluded here on purpose;
+  // see fetchMyCustomTrackedCompanies for those.
+  const { data, error } = await supabase
+    .from("user_tracked_companies")
+    .select("company_id")
+    .not("company_id", "is", null);
   if (error) throw error;
-  return new Set((data ?? []).map((r: { company_id: string }) => r.company_id));
+  return new Set((data ?? []).map((r: { company_id: string | null }) => r.company_id as string));
+}
+
+/** This person's own free-text tracked companies — never shown to anyone else, never
+ * managed by admin, never matched against company_updates. */
+export async function fetchMyCustomTrackedCompanies(): Promise<CustomTrackedCompany[]> {
+  const { data, error } = await supabase
+    .from("user_tracked_companies")
+    .select("id, custom_name")
+    .not("custom_name", "is", null)
+    .order("created_at");
+  if (error) throw error;
+  return (data ?? []).map((r: { id: string; custom_name: string | null }) => ({
+    id: r.id,
+    name: r.custom_name as string,
+  }));
+}
+
+export async function addCustomTrackedCompany(name: string): Promise<void> {
+  const trimmed = name.trim();
+  if (!trimmed) throw new EntryParseError("Enter a company name.");
+  const { error } = await supabase.from("user_tracked_companies").insert({ custom_name: trimmed });
+  if (error) {
+    if (error.code === "23505") throw new EntryParseError("You're already tracking that company.");
+    throw error;
+  }
+}
+
+export async function removeCustomTrackedCompany(rowId: string): Promise<void> {
+  const { error } = await supabase.from("user_tracked_companies").delete().eq("id", rowId);
+  if (error) throw error;
 }
 
 export async function trackCompany(companyId: string) {
@@ -102,7 +142,7 @@ export async function fetchEvents(): Promise<EventItem[]> {
   const [{ data, error }, { data: stars, error: starsError }] = await Promise.all([
     supabase
       .from("events")
-      .select("id, name, start_date, end_date, location, relevance_note")
+      .select("id, name, start_date, end_date, location, relevance_note, categories")
       .order("start_date", { ascending: true, nullsFirst: false }),
     // RLS scopes this to the signed-in user's own stars — no extra filter needed.
     supabase.from("event_stars").select("event_id"),
@@ -130,7 +170,20 @@ export type ParsedEvent = {
   end_date: string | null;
   location: string | null;
   relevance_note: string | null;
+  categories: string[];
 };
+
+/** Keeps only strings that are one of the 28 shared focus-topic categories, so events
+ * always match against the same vocabulary used everywhere else (onboarding, News, etc). */
+function normalizeCategories(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const known = new Set<string>(FOCUS_TOPICS);
+  const out: string[] = [];
+  for (const item of raw) {
+    if (typeof item === "string" && known.has(item) && !out.includes(item)) out.push(item);
+  }
+  return out;
+}
 
 function asDate(v: unknown): string | null {
   return typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
@@ -163,6 +216,7 @@ export function parseEventsJSON(text: string): ParsedEvent[] {
       end_date: asDate(o["end_date"]),
       location: typeof o["location"] === "string" ? o["location"] : null,
       relevance_note: typeof o["relevance_note"] === "string" ? o["relevance_note"] : null,
+      categories: normalizeCategories(o["categories"]),
     };
   });
 }
@@ -326,40 +380,17 @@ export function isPastEvent(event: EventItem): boolean {
 }
 
 /**
- * Loose keyword overlap between a person's interest categories and an event's
- * sector tags — e.g. "Healthcare" overlaps "Digital Health" or "Health Tech" via
- * the shared "health" root. Not a precise taxonomy match (the two lists were built
- * separately), just enough to surface a "recommended for you" shortlist.
+ * Exact match against the same 28 focus-topic categories used everywhere else in the
+ * app (onboarding, News, etc) — events are now tagged directly with these categories
+ * rather than a separate sector taxonomy, so matching is precise, not heuristic.
  */
-function fuzzyOverlap(a: string, b: string): boolean {
-  const tokensOf = (s: string) => s.toLowerCase().split(/[^a-z0-9]+/).filter((t) => t.length >= 4);
-  const ta = tokensOf(a);
-  const tb = tokensOf(b);
-  return ta.some((x) => tb.some((y) => x.includes(y) || y.includes(x)));
-}
-
 export function eventMatchesInterests(event: EventItem, focusTopics: readonly string[]): boolean {
-  if (focusTopics.length === 0) return false;
-  const sectors = eventSectors(event);
-  if (sectors.length === 0) return false;
-  return focusTopics.some((topic) => sectors.some((sector) => fuzzyOverlap(topic, sector)));
+  if (focusTopics.length === 0 || event.categories.length === 0) return false;
+  const mine = new Set(focusTopics);
+  return event.categories.some((c) => mine.has(c));
 }
 
-/* ---------- Event sectors, regions and timeline helpers ---------- */
-
-export const SECTORS = [
-  "Digital Health",
-  "Pharma",
-  "Insurance",
-  "NHS",
-  "Health Tech",
-  "Wellness",
-  "Nutrition",
-  "Wellbeing",
-  "Fitness",
-  "Medical/Hospital",
-  "Medical Devices",
-] as const;
+/* ---------- Event regions and timeline helpers ---------- */
 
 export const REGIONS = [
   "North America",
@@ -370,16 +401,9 @@ export const REGIONS = [
   "APAC/Australia",
 ] as const;
 
-/** Sectors are encoded as a leading "[A/B/C]" prefix in relevance_note. */
-export function eventSectors(event: EventItem): string[] {
-  const note = event.relevance_note ?? "";
-  const match = /^\s*\[([^\]]+)\]/.exec(note);
-  const haystack = (match?.[1] ?? "").toLowerCase();
-  if (!haystack) return [];
-  return SECTORS.filter((s) => haystack.includes(s.toLowerCase()));
-}
-
-/** Text of the relevance note with the "[...]" sector prefix removed. */
+/** Text of the relevance note — plain description, no embedded tags. Older rows saved
+ * before the category switch may still carry a leading "[A/B/C]" prefix; strip it so
+ * legacy events keep reading cleanly until re-pasted with real categories. */
 export function eventDescription(event: EventItem): string {
   return (event.relevance_note ?? "").replace(/^\s*\[[^\]]+\]\s*/, "").trim();
 }

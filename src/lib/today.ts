@@ -22,6 +22,7 @@ export type NewsItem = {
 };
 
 export type Lesson = {
+  category?: string;
   module?: string;
   day?: string;
   title?: string;
@@ -37,6 +38,7 @@ export type QuizQuestion = {
 };
 
 export type Influencer = {
+  category?: string;
   name?: string;
   role_or_field?: string;
   why_follow?: string;
@@ -46,10 +48,38 @@ export type Influencer = {
 };
 
 export type VideoRecommendation = {
+  category?: string;
   title?: string;
   url?: string;
   duration_note?: string;
 };
+
+/** The daily "one thing to do" — now a small object so it can carry a category, same as
+ * every other section, instead of being a bare string. */
+export type TaskContent = {
+  category?: string;
+  description: string;
+};
+
+/** Accepts a plain string (legacy shape) or {category, description}; always returns the
+ * structured form so the rest of the app only ever deals with one shape. */
+export function normalizeTask(raw: unknown): TaskContent | null {
+  if (typeof raw === "string") {
+    const trimmed = raw.trim();
+    return trimmed ? { description: trimmed } : null;
+  }
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    const o = raw as Record<string, unknown>;
+    const description =
+      (typeof o["description"] === "string" && o["description"]) ||
+      (typeof o["task"] === "string" && o["task"]) ||
+      "";
+    if (!description.trim()) return null;
+    const category = typeof o["category"] === "string" ? o["category"] : undefined;
+    return category ? { category, description } : { description };
+  }
+  return null;
+}
 
 export type TermOfDay = {
   category?: string;
@@ -75,7 +105,7 @@ export type DailyEntry = {
   entry_date: string;
   news_brief: NewsItem[] | null;
   lesson: Lesson | null;
-  task: string | null;
+  task: TaskContent | null;
   quiz: QuizQuestion[] | null;
   influencers?: Influencer[] | null;
   video_recommendation?: VideoRecommendation | null;
@@ -419,7 +449,13 @@ async function loadPastedEntryForUser(
   await saveField("news_brief", "news items", "news_brief", news, `${news.length} news items`);
 
   await saveField("lesson", "lesson", "lesson", u["lesson"] ?? null, "lesson");
-  await saveField("task", "task", "task", typeof u["task"] === "string" ? u["task"] : String(u["task"] ?? ""), "task");
+
+  const task = normalizeTask(u["task"]);
+  if (present("task") && !task) {
+    fields.push({ key: "task", label: "task", status: "failed", detail: "empty or unusable task" });
+  } else {
+    await saveField("task", "task", "task", task, "task");
+  }
 
   const quiz = normalizeQuiz(u["quiz"]);
   if (present("quiz") && quiz.length === 0) {
