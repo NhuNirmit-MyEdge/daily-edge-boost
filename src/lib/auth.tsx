@@ -89,9 +89,17 @@ export async function updatePassword(newPassword: string) {
 }
 
 export async function fetchMyProfile(): Promise<UserProfile | null> {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const uid = sessionData.session?.user.id;
+  if (!uid) return null;
+  // Explicit filter, not just RLS: an admin's SELECT policy can see every row in this
+  // table (for the Load Today / Subscribers flows), so without this an admin's own
+  // profile fetch can legitimately return more than one row once other people have
+  // signed up — and .maybeSingle() throws on anything but exactly 0 or 1 row.
   const { data, error } = await supabase
     .from("user_profiles")
     .select("id, email, is_admin, onboarded, focus_topics, name, age_range, gender")
+    .eq("id", uid)
     .maybeSingle();
   if (error) throw error;
   return data;
