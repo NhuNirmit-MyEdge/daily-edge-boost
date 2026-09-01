@@ -32,7 +32,8 @@ function InfluencersPage() {
             const link = person.link ?? person.url ?? null;
             return (
               <div key={i}>
-                <h3 className="text-sm font-semibold">{person.name ?? "Unnamed"}</h3>
+                {person.category ? <p className="eyebrow">{person.category}</p> : null}
+                <h3 className="mt-1 text-sm font-semibold">{person.name ?? "Unnamed"}</h3>
                 {person.role_or_field ? (
                   <p className="mt-0.5 text-xs text-muted-foreground">{person.role_or_field}</p>
                 ) : null}

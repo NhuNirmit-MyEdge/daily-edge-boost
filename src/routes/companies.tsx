@@ -12,13 +12,16 @@ import { EmptyState, PageShell } from "@/components/today/SectionPage";
 import { SectionHeading } from "@/components/today/SectionHeading";
 import {
   addCompany,
+  addCustomTrackedCompany,
   deleteCompany,
   fetchCompanies,
   fetchCompanyUpdates,
+  fetchMyCustomTrackedCompanies,
   fetchMyTrackedCompanyIds,
   groupUpdatesByPeriod,
   importCompanyHistory,
   parseCompanyHistoryJSON,
+  removeCustomTrackedCompany,
   trackCompany,
   untrackCompany,
 } from "@/lib/tracking";
@@ -60,8 +63,10 @@ function CompaniesPage() {
   const companiesQuery = useQuery({ queryKey: ["companies"], queryFn: fetchCompanies });
   const updatesQuery = useQuery({ queryKey: ["company-updates"], queryFn: fetchCompanyUpdates });
   const trackedQuery = useQuery({ queryKey: ["tracked-companies"], queryFn: fetchMyTrackedCompanyIds });
+  const customQuery = useQuery({ queryKey: ["custom-tracked-companies"], queryFn: fetchMyCustomTrackedCompanies });
   const [openId, setOpenId] = useState<string | null>(null);
   const [name, setName] = useState("");
+  const [customName, setCustomName] = useState("");
   const today = todayISO();
   const [viewed, setViewed] = useState<Record<string, string>>({});
 
@@ -112,6 +117,22 @@ function CompaniesPage() {
     mutationFn: (id: string) => untrackCompany(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tracked-companies"] }),
     onError: () => toast.error("Couldn't untrack that company."),
+  });
+
+  const addCustomMutation = useMutation({
+    mutationFn: (value: string) => addCustomTrackedCompany(value),
+    onSuccess: () => {
+      setCustomName("");
+      queryClient.invalidateQueries({ queryKey: ["custom-tracked-companies"] });
+    },
+    onError: (err) =>
+      toast.error(err instanceof EntryParseError ? err.message : "Couldn't add that company."),
+  });
+
+  const removeCustomMutation = useMutation({
+    mutationFn: (rowId: string) => removeCustomTrackedCompany(rowId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["custom-tracked-companies"] }),
+    onError: () => toast.error("Couldn't remove that company."),
   });
 
   const companies = companiesQuery.data ?? [];
@@ -247,6 +268,51 @@ function CompaniesPage() {
           </div>
         </div>
       ) : null}
+
+      <div className="mt-6">
+        <SectionHeading
+          label="Track any other company"
+          hint="Private to you — no update timeline, just your own reminder list"
+        />
+        <form
+          className="flex gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (customName.trim()) addCustomMutation.mutate(customName);
+          }}
+        >
+          <input
+            value={customName}
+            onChange={(e) => setCustomName(e.target.value)}
+            placeholder="Type any company name"
+            aria-label="Track a company by name"
+            className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+          />
+          <Button type="submit" disabled={addCustomMutation.isPending || customName.trim().length === 0}>
+            Track
+          </Button>
+        </form>
+        {customQuery.data?.length ? (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {customQuery.data.map((c) => (
+              <span
+                key={c.id}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground"
+              >
+                {c.name}
+                <button
+                  type="button"
+                  aria-label={`Stop tracking ${c.name}`}
+                  onClick={() => removeCustomMutation.mutate(c.id)}
+                  className="text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  <X className="h-3 w-3" aria-hidden="true" />
+                </button>
+              </span>
+            ))}
+          </div>
+        ) : null}
+      </div>
 
       {isAdmin ? (
         <div className="mt-8 space-y-6">

@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { EmptyState, PageShell } from "@/components/today/SectionPage";
 import {
   REGIONS,
-  SECTORS,
   downloadICS,
   eventDayRange,
   eventDescription,
@@ -16,7 +15,6 @@ import {
   eventMonthKey,
   eventMonthLabel,
   eventRegion,
-  eventSectors,
   fetchEvents,
   isPastEvent,
   parseEventsJSON,
@@ -24,6 +22,7 @@ import {
   upsertEvents,
   type EventItem,
 } from "@/lib/tracking";
+import { FOCUS_TOPICS } from "@/lib/auth";
 import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/events")({
@@ -33,10 +32,10 @@ export const Route = createFileRoute("/events")({
       {
         name: "description",
         content:
-          "A scrollable 2026 timeline of relevant industry events and conferences, filterable by sector and region.",
+          "A scrollable 2026 timeline of events and conferences, focused on the categories you follow.",
       },
       { property: "og:title", content: "Events & Conferences — MyEdge" },
-      { property: "og:description", content: "The 2026 industry events worth knowing about." },
+      { property: "og:description", content: "The 2026 events worth knowing about, for you." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -71,7 +70,6 @@ function Chip({
 
 function EventRow({ event, onToggleStar }: { event: EventItem; onToggleStar: (event: EventItem) => void }) {
   const past = isPastEvent(event);
-  const sectors = eventSectors(event);
   const description = eventDescription(event);
   const region = eventRegion(event);
 
@@ -114,14 +112,14 @@ function EventRow({ event, onToggleStar }: { event: EventItem; onToggleStar: (ev
           {description ? (
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{description}</p>
           ) : null}
-          {sectors.length > 0 || region ? (
+          {event.categories.length > 0 || region ? (
             <div className="mt-2 flex flex-wrap gap-1.5">
-              {sectors.map((s) => (
+              {event.categories.map((c) => (
                 <span
-                  key={s}
+                  key={c}
                   className="rounded-full bg-primary/15 px-2 py-0.5 text-[0.6875rem] font-medium text-primary"
                 >
-                  {s}
+                  {c}
                 </span>
               ))}
               {region ? (
@@ -142,14 +140,13 @@ function EventsPage() {
   const isAdmin = Boolean(profile?.is_admin);
   const queryClient = useQueryClient();
   const eventsQuery = useQuery({ queryKey: ["events"], queryFn: fetchEvents });
-  const [sector, setSector] = useState<string | null>(null);
+  const focusTopics = profile?.focus_topics ?? [];
+  // Default to a personalised view; "All events" is one tap away for browsing.
+  const [mode, setMode] = useState<"mine" | "all">("mine");
+  const [category, setCategory] = useState<string | null>(null);
   const [region, setRegion] = useState<string | null>(null);
 
   const starredEvents = (eventsQuery.data ?? []).filter((e) => e.starred);
-  const recommended = (eventsQuery.data ?? [])
-    .filter((e) => !isPastEvent(e) && eventMatchesInterests(e, profile?.focus_topics ?? []))
-    .sort((a, b) => (a.start_date ?? "9999").localeCompare(b.start_date ?? "9999"))
-    .slice(0, 3);
 
   const onToggleStar = async (event: EventItem) => {
     const next = !event.starred;
@@ -165,7 +162,8 @@ function EventsPage() {
 
   const groups = useMemo(() => {
     const list = (eventsQuery.data ?? [])
-      .filter((e) => (sector ? eventSectors(e).includes(sector) : true))
+      .filter((e) => (mode === "mine" ? eventMatchesInterests(e, focusTopics) : true))
+      .filter((e) => (mode === "all" && category ? e.categories.includes(category) : true))
       .filter((e) => (region ? eventRegion(e) === region : true))
       .slice()
       .sort((a, b) => (a.start_date ?? "9999").localeCompare(b.start_date ?? "9999"));
@@ -178,36 +176,45 @@ function EventsPage() {
       else out.push({ key, label: eventMonthLabel(e), items: [e] });
     }
     return out;
-  }, [eventsQuery.data, sector, region]);
+  }, [eventsQuery.data, mode, category, region, focusTopics]);
 
   return (
     <PageShell title="Events" section="events">
-      {recommended.length > 0 ? (
-        <div className="mb-4 rounded-2xl border border-primary/30 bg-primary/5 p-3">
-          <p className="eyebrow">Matches your interests</p>
-          <ul className="mt-2 space-y-1.5">
-            {recommended.map((e) => (
-              <li key={e.id} className="flex items-center justify-between gap-2 text-sm">
-                <span className="truncate">{e.name}</span>
-                <span className="shrink-0 text-xs text-muted-foreground">{eventDayRange(e)}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
+      <div className="flex gap-1.5 rounded-2xl border border-border bg-card p-1">
+        <button
+          type="button"
+          onClick={() => setMode("mine")}
+          className={`flex-1 rounded-xl py-2 text-sm font-medium transition-colors ${
+            mode === "mine" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Your interests
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode("all")}
+          className={`flex-1 rounded-xl py-2 text-sm font-medium transition-colors ${
+            mode === "all" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          All events
+        </button>
+      </div>
 
-      <div className="-mx-4 space-y-2 px-4">
-        <div className="flex gap-1.5 overflow-x-auto pb-1">
-          <Chip label="All sectors" active={sector === null} onClick={() => setSector(null)} />
-          {SECTORS.map((s) => (
-            <Chip
-              key={s}
-              label={s}
-              active={sector === s}
-              onClick={() => setSector(sector === s ? null : s)}
-            />
-          ))}
-        </div>
+      <div className="-mx-4 mt-3 space-y-2 px-4">
+        {mode === "all" ? (
+          <div className="flex gap-1.5 overflow-x-auto pb-1">
+            <Chip label="All categories" active={category === null} onClick={() => setCategory(null)} />
+            {FOCUS_TOPICS.map((c) => (
+              <Chip
+                key={c}
+                label={c}
+                active={category === c}
+                onClick={() => setCategory(category === c ? null : c)}
+              />
+            ))}
+          </div>
+        ) : null}
         <div className="flex gap-1.5 overflow-x-auto pb-1">
           <Chip label="All regions" active={region === null} onClick={() => setRegion(null)} />
           {REGIONS.map((r) => (
@@ -243,7 +250,11 @@ function EventsPage() {
         ) : groups.length === 0 ? (
           <EmptyState
             title="No events match"
-            body="Clear the filters, or paste a JSON list of events below to build your 2026 calendar."
+            body={
+              mode === "mine"
+                ? "Nothing tagged with your categories yet — try \"All events\" to browse everything, or paste a JSON list below."
+                : "Clear the filters, or paste a JSON list of events below to build your 2026 calendar."
+            }
           />
         ) : (
           <div>
@@ -266,8 +277,8 @@ function EventsPage() {
       {isAdmin ? (
         <BulkImportBox
           heading="Paste events list"
-          instructions="Paste a JSON array of events — each with name, start_date, end_date (YYYY-MM-DD), location and relevance_note. Prefix relevance_note with sectors in brackets, e.g. [Digital Health/Pharma]. Existing events are updated rather than duplicated."
-          placeholder={'[{"name":"HLTH Europe","start_date":"2026-06-15","end_date":"2026-06-18","location":"Amsterdam, Netherlands","relevance_note":"[Digital Health/Health Tech] Digital health leaders"}]'}
+          instructions='Paste a JSON array of events — each with name, start_date, end_date (YYYY-MM-DD), location, relevance_note (plain text) and categories (an array using the same 28 categories as onboarding — e.g. ["Healthcare","Technology"]). Only people whose categories overlap will see it under "Your interests". Existing events are updated rather than duplicated.'
+          placeholder={'[{"name":"HLTH Europe","start_date":"2026-06-15","end_date":"2026-06-18","location":"Amsterdam, Netherlands","relevance_note":"Digital health leaders gathering","categories":["Healthcare","Technology"]}]'}
           submitLabel="Save events"
           onSubmit={async (text) => {
             const parsed = parseEventsJSON(text);
@@ -275,13 +286,13 @@ function EventsPage() {
             await queryClient.invalidateQueries({ queryKey: ["events"] });
             const dated = parsed.filter((e) => e.start_date).length;
             const located = parsed.filter((e) => e.location).length;
-            const noted = parsed.filter((e) => e.relevance_note).length;
+            const categorised = parsed.filter((e) => e.categories.length > 0).length;
             return [
               `Parsed ${parsed.length} events ✓`,
               `${count} events saved ✓`,
               `${dated} with start dates ✓${parsed.length - dated ? ` · ${parsed.length - dated} missing start_date` : ""}`,
               `${located} with locations ✓`,
-              `${noted} with relevance notes ✓`,
+              `${categorised} with categories ✓${parsed.length - categorised ? ` · ${parsed.length - categorised} uncategorised (won't show under "Your interests")` : ""}`,
             ];
           }}
         />

@@ -24,7 +24,7 @@ function ActionPage() {
       title="Action"
       section="action"
       render={(entry, entryDate) =>
-        entry.task ? (
+        entry.task?.description ? (
           <ActionCard task={entry.task} entryDate={entryDate} />
         ) : (
           <EmptyState title="No action today" body="Today's entry doesn't include a task yet." />

@@ -33,6 +33,7 @@ function VideoPage() {
         return (
           <div>
             <Play className="h-5 w-5 text-primary" aria-hidden="true" />
+            {video.category ? <p className="mt-2 eyebrow">{video.category}</p> : null}
             <h3 className="mt-2 text-sm font-semibold leading-snug">
               {video.title ?? "Watch this"}
             </h3>

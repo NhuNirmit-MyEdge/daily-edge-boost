@@ -31,7 +31,7 @@ function LearnPage() {
       hasContent={(entry) => Boolean(entry.lesson?.title || entry.lesson?.content)}
       render={(entry) => {
         const lesson = entry.lesson!;
-        const meta = [lesson.module, lesson.day].filter(Boolean).join(" · ");
+        const meta = [lesson.category, lesson.module, lesson.day].filter(Boolean).join(" · ");
         return (
           <div>
             {meta ? <p className="eyebrow">{meta}</p> : null}

@@ -1,12 +1,21 @@
 import { useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { X } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AGE_RANGES, FOCUS_TOPICS, GENDER_OPTIONS, MAX_FOCUS_TOPICS, saveOnboarding, useAuth } from "@/lib/auth";
-import { fetchCompanies, setTrackedCompanies } from "@/lib/tracking";
+import { EntryParseError } from "@/lib/today";
+import {
+  addCustomTrackedCompany,
+  fetchCompanies,
+  fetchMyCustomTrackedCompanies,
+  removeCustomTrackedCompany,
+  setTrackedCompanies,
+} from "@/lib/tracking";
 
 export const Route = createFileRoute("/onboarding")({
   head: () => ({
@@ -45,15 +54,34 @@ function Chip({
 
 function OnboardingPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { refreshProfile } = useAuth();
   const [name, setName] = useState("");
   const [ageRange, setAgeRange] = useState<string | null>(null);
   const [gender, setGender] = useState<string | null>(null);
   const [topics, setTopics] = useState<string[]>([]);
   const [companyIds, setCompanyIds] = useState<string[]>([]);
+  const [customName, setCustomName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const companiesQuery = useQuery({ queryKey: ["companies"], queryFn: fetchCompanies });
+  const customQuery = useQuery({ queryKey: ["custom-tracked-companies"], queryFn: fetchMyCustomTrackedCompanies });
+
+  const addCustomMutation = useMutation({
+    mutationFn: (value: string) => addCustomTrackedCompany(value),
+    onSuccess: () => {
+      setCustomName("");
+      queryClient.invalidateQueries({ queryKey: ["custom-tracked-companies"] });
+    },
+    onError: (err) =>
+      toast.error(err instanceof EntryParseError ? err.message : "Couldn't add that company."),
+  });
+
+  const removeCustomMutation = useMutation({
+    mutationFn: (rowId: string) => removeCustomTrackedCompany(rowId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["custom-tracked-companies"] }),
+    onError: () => toast.error("Couldn't remove that company."),
+  });
 
   const toggleCompany = (id: string) => {
     setCompanyIds((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
@@ -149,6 +177,48 @@ function OnboardingPage() {
             </div>
           </div>
         ) : null}
+
+        <div>
+          <Label>Track any other company (optional)</Label>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Not on the list above? Type any name — private to you, saved right away.
+          </p>
+          <div className="mt-2 flex gap-2">
+            <Input
+              value={customName}
+              onChange={(e) => setCustomName(e.target.value)}
+              placeholder="Type any company name"
+              aria-label="Track a company by name"
+            />
+            <Button
+              type="button"
+              onClick={() => customName.trim() && addCustomMutation.mutate(customName)}
+              disabled={addCustomMutation.isPending || customName.trim().length === 0}
+            >
+              Track
+            </Button>
+          </div>
+          {customQuery.data?.length ? (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {customQuery.data.map((c) => (
+                <span
+                  key={c.id}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground"
+                >
+                  {c.name}
+                  <button
+                    type="button"
+                    aria-label={`Stop tracking ${c.name}`}
+                    onClick={() => removeCustomMutation.mutate(c.id)}
+                    className="text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    <X className="h-3 w-3" aria-hidden="true" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          ) : null}
+        </div>
 
         {error ? (
           <p role="alert" className="text-sm leading-relaxed text-destructive">
