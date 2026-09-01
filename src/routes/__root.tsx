@@ -147,7 +147,10 @@ function RootComponent() {
   );
 }
 
-const PUBLIC_ROUTES = new Set(["/login"]);
+// /reset-password must stay public: the emailed link lands here with only a
+// temporary recovery session, and it needs to render before/without a normal
+// signed-in + onboarded session existing.
+const PUBLIC_ROUTES = new Set(["/login", "/reset-password"]);
 
 /**
  * Gates every route behind a signed-in, onboarded session. Unauthenticated visitors
@@ -162,6 +165,10 @@ function AuthGate({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (loading) return;
+    // Always exempt: a recovery session here shouldn't trigger the onboarding
+    // redirect, and no session yet (still resolving the emailed link) shouldn't
+    // bounce to /login either.
+    if (pathname === "/reset-password") return;
     if (!session) {
       if (!PUBLIC_ROUTES.has(pathname)) void navigate({ to: "/login" });
       return;
@@ -181,6 +188,10 @@ function AuthGate({ children }: { children: ReactNode }) {
         <Sparkles className="h-6 w-6 animate-pulse text-primary" aria-hidden="true" />
       </div>
     );
+  }
+
+  if (pathname === "/reset-password") {
+    return <>{children}</>;
   }
 
   if (!session) {

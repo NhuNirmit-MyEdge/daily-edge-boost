@@ -5,7 +5,7 @@ import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { signIn, signUp } from "@/lib/auth";
+import { requestPasswordReset, signIn, signUp } from "@/lib/auth";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -15,12 +15,13 @@ export const Route = createFileRoute("/login")({
 });
 
 function LoginPage() {
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [mode, setMode] = useState<"signin" | "signup" | "forgot">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [checkInbox, setCheckInbox] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,6 +45,85 @@ function LoginPage() {
       setBusy(false);
     }
   };
+
+  const submitForgot = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setBusy(true);
+    try {
+      await requestPasswordReset(email);
+      setResetSent(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (mode === "forgot") {
+    return (
+      <main className="mx-auto flex min-h-screen w-full max-w-sm flex-col justify-center px-4 py-10">
+        <div className="text-center">
+          <Sparkles className="mx-auto h-6 w-6 text-primary" aria-hidden="true" />
+          <h1 className="mt-3 text-2xl font-semibold tracking-tight">Reset your password</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {resetSent
+              ? "Check your email for a reset link."
+              : "We'll email you a link to set a new password."}
+          </p>
+        </div>
+
+        {resetSent ? (
+          <p className="mt-8 text-center text-sm leading-relaxed text-muted-foreground">
+            Didn&apos;t get it? Check spam, or{" "}
+            <button
+              type="button"
+              onClick={() => setResetSent(false)}
+              className="text-foreground underline"
+            >
+              try again
+            </button>
+            .
+          </p>
+        ) : (
+          <form onSubmit={submitForgot} className="mt-8 space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="forgot-email">Email</Label>
+              <Input
+                id="forgot-email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+              />
+            </div>
+            {error ? (
+              <p role="alert" className="text-sm leading-relaxed text-destructive">
+                {error}
+              </p>
+            ) : null}
+            <Button type="submit" className="w-full" disabled={busy}>
+              {busy ? "Sending…" : "Send reset link"}
+            </Button>
+          </form>
+        )}
+
+        <button
+          type="button"
+          onClick={() => {
+            setMode("signin");
+            setError(null);
+            setResetSent(false);
+          }}
+          className="mt-6 text-center text-sm text-muted-foreground transition-colors hover:text-foreground"
+        >
+          Back to sign in
+        </button>
+      </main>
+    );
+  }
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-sm flex-col justify-center px-4 py-10">
@@ -80,6 +160,18 @@ function LoginPage() {
             onChange={(e) => setPassword(e.target.value)}
             placeholder="At least 6 characters"
           />
+          {mode === "signin" ? (
+            <button
+              type="button"
+              onClick={() => {
+                setMode("forgot");
+                setError(null);
+              }}
+              className="text-xs text-muted-foreground underline transition-colors hover:text-foreground"
+            >
+              Forgot password?
+            </button>
+          ) : null}
         </div>
 
         {error ? (
