@@ -72,6 +72,22 @@ export async function signOut() {
   if (error) throw error;
 }
 
+/** Emails a reset link that lands on /reset-password with a temporary recovery session. */
+export async function requestPasswordReset(email: string) {
+  const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+    redirectTo: `${window.location.origin}/reset-password`,
+  });
+  if (error) throw error;
+}
+
+/** Sets a new password for whoever the current session belongs to — used on the
+ * /reset-password page, where landing via the emailed link establishes a temporary
+ * recovery session for exactly this purpose. */
+export async function updatePassword(newPassword: string) {
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) throw error;
+}
+
 export async function fetchMyProfile(): Promise<UserProfile | null> {
   const { data, error } = await supabase
     .from("user_profiles")
