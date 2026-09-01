@@ -49,12 +49,15 @@ export function PasteEntryCard({
         <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
           Expects a top-level entry_date plus a <code>users</code> array — one object per
           signed-up person, each with their email and their own news_brief (category, headline,
-          what_happened, why_it_matters, why_it_matters_to_you, watch_next), lesson, quiz (5
-          questions), task, influencers, video_recommendation, term_of_the_day and
-          perspective_of_the_day, tailored to that person&apos;s interests. company_updates stays a
-          single shared list at the top level, outside the users array — those facts are the same
-          for everyone tracking that company. Every field, for every person, saves independently —
-          one person or one field failing never blocks the rest.
+          what_happened, why_it_matters, why_it_matters_to_you, watch_next), lesson (title,
+          content, optional category), task (a string, or {"{"}category, description{"}"} to show
+          a category label), quiz (5 questions), influencers (optional category per person),
+          video_recommendation (optional category), term_of_the_day and perspective_of_the_day,
+          tailored to that person&apos;s interests — use one of their selected categories so the
+          label makes sense to them. company_updates stays a single shared list at the top level,
+          outside the users array — those facts are the same for everyone tracking that company.
+          Every field, for every person, saves independently — one person or one field failing
+          never blocks the rest.
         </p>
 
         <textarea

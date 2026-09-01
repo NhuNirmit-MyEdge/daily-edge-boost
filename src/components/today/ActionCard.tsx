@@ -3,10 +3,10 @@ import { Check } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { completeTask, fetchTaskCompletion } from "@/lib/today";
+import { completeTask, fetchTaskCompletion, type TaskContent } from "@/lib/today";
 import { SectionHeading } from "./SectionHeading";
 
-export function ActionCard({ task, entryDate }: { task: string; entryDate: string }) {
+export function ActionCard({ task, entryDate }: { task: TaskContent; entryDate: string }) {
   const [done, setDone] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -39,7 +39,8 @@ export function ActionCard({ task, entryDate }: { task: string; entryDate: strin
     <section>
       <SectionHeading label="Today's action" />
       <article className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-        <p className="text-sm leading-relaxed text-foreground/90">{task}</p>
+        {task.category ? <p className="eyebrow">{task.category}</p> : null}
+        <p className="mt-1 text-sm leading-relaxed text-foreground/90">{task.description}</p>
         {done ? (
           <div className="mt-4 flex items-center gap-2 rounded-xl bg-secondary/60 px-3 py-2 text-sm text-success">
             <Check className="h-4 w-4" aria-hidden="true" />

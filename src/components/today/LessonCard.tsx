@@ -76,7 +76,7 @@ export function LessonCard({
   defaultOpen?: boolean;
 }) {
   const [open, setOpen] = useState(defaultOpen);
-  const meta = [lesson.module, lesson.day].filter(Boolean).join(" · ");
+  const meta = [lesson.category, lesson.module, lesson.day].filter(Boolean).join(" · ");
 
   return (
     <article className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
