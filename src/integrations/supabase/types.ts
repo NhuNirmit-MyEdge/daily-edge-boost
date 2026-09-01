@@ -79,7 +79,7 @@ export type Database = {
           news_brief: Json
           perspective_of_the_day: Json | null
           quiz: Json
-          task: string | null
+          task: Json | null
           term_of_the_day: Json | null
           updated_at: string
           user_id: string | null
@@ -93,7 +93,7 @@ export type Database = {
           news_brief?: Json
           perspective_of_the_day?: Json | null
           quiz?: Json
-          task?: string | null
+          task?: Json | null
           term_of_the_day?: Json | null
           updated_at?: string
           user_id?: string | null
@@ -107,7 +107,7 @@ export type Database = {
           news_brief?: Json
           perspective_of_the_day?: Json | null
           quiz?: Json
-          task?: string | null
+          task?: Json | null
           term_of_the_day?: Json | null
           updated_at?: string
           user_id?: string | null
@@ -143,6 +143,7 @@ export type Database = {
       }
       events: {
         Row: {
+          categories: string[]
           created_at: string
           end_date: string | null
           id: string
@@ -152,6 +153,7 @@ export type Database = {
           start_date: string | null
         }
         Insert: {
+          categories?: string[]
           created_at?: string
           end_date?: string | null
           id?: string
@@ -161,6 +163,7 @@ export type Database = {
           start_date?: string | null
         }
         Update: {
+          categories?: string[]
           created_at?: string
           end_date?: string | null
           id?: string
@@ -257,18 +260,24 @@ export type Database = {
       }
       user_tracked_companies: {
         Row: {
-          company_id: string
+          company_id: string | null
           created_at: string
+          custom_name: string | null
+          id: string
           user_id: string
         }
         Insert: {
-          company_id: string
+          company_id?: string | null
           created_at?: string
+          custom_name?: string | null
+          id?: string
           user_id?: string
         }
         Update: {
-          company_id?: string
+          company_id?: string | null
           created_at?: string
+          custom_name?: string | null
+          id?: string
           user_id?: string
         }
         Relationships: [
