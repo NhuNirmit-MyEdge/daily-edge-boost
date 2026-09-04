@@ -1,23 +1,21 @@
 import { useEffect, useState } from "react";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { LogOut, X } from "lucide-react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { Building2, ChevronRight, LogOut } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageShell } from "@/components/today/SectionPage";
-import { AGE_RANGES, FOCUS_TOPICS, GENDER_OPTIONS, MAX_FOCUS_TOPICS, saveOnboarding, signOut, useAuth } from "@/lib/auth";
-import { EntryParseError } from "@/lib/today";
 import {
-  addCustomTrackedCompany,
-  fetchCompanies,
-  fetchMyCustomTrackedCompanies,
-  fetchMyTrackedCompanyIds,
-  removeCustomTrackedCompany,
-  setTrackedCompanies,
-} from "@/lib/tracking";
+  AGE_RANGES,
+  FOCUS_TOPICS,
+  GENDER_OPTIONS,
+  MAX_FOCUS_TOPICS,
+  saveOnboarding,
+  signOut,
+  useAuth,
+} from "@/lib/auth";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
@@ -56,34 +54,12 @@ function Chip({
 
 function SettingsPage() {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const { session, profile, refreshProfile } = useAuth();
   const [name, setName] = useState("");
   const [ageRange, setAgeRange] = useState<string | null>(null);
   const [gender, setGender] = useState<string | null>(null);
   const [topics, setTopics] = useState<string[]>([]);
-  const [companyIds, setCompanyIds] = useState<string[]>([]);
-  const [customName, setCustomName] = useState("");
   const [busy, setBusy] = useState(false);
-  const companiesQuery = useQuery({ queryKey: ["companies"], queryFn: fetchCompanies });
-  const trackedQuery = useQuery({ queryKey: ["tracked-companies"], queryFn: fetchMyTrackedCompanyIds });
-  const customQuery = useQuery({ queryKey: ["custom-tracked-companies"], queryFn: fetchMyCustomTrackedCompanies });
-
-  const addCustomMutation = useMutation({
-    mutationFn: (value: string) => addCustomTrackedCompany(value),
-    onSuccess: () => {
-      setCustomName("");
-      queryClient.invalidateQueries({ queryKey: ["custom-tracked-companies"] });
-    },
-    onError: (err) =>
-      toast.error(err instanceof EntryParseError ? err.message : "Couldn't add that company."),
-  });
-
-  const removeCustomMutation = useMutation({
-    mutationFn: (rowId: string) => removeCustomTrackedCompany(rowId),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["custom-tracked-companies"] }),
-    onError: () => toast.error("Couldn't remove that company."),
-  });
 
   useEffect(() => {
     if (!profile) return;
@@ -92,14 +68,6 @@ function SettingsPage() {
     setGender(profile.gender);
     setTopics(profile.focus_topics ?? []);
   }, [profile]);
-
-  useEffect(() => {
-    if (trackedQuery.data) setCompanyIds([...trackedQuery.data]);
-  }, [trackedQuery.data]);
-
-  const toggleCompany = (id: string) => {
-    setCompanyIds((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
-  };
 
   const toggleTopic = (topic: string) => {
     setTopics((prev) => {
@@ -117,7 +85,6 @@ function SettingsPage() {
     setBusy(true);
     try {
       await saveOnboarding({ name, ageRange, gender, focusTopics: topics });
-      await setTrackedCompanies(companyIds);
       await refreshProfile();
       toast.success("Saved");
     } catch {
@@ -179,64 +146,20 @@ function SettingsPage() {
           </div>
         </div>
 
-        {companiesQuery.data?.length ? (
-          <div>
-            <Label>Companies you track</Label>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {companiesQuery.data.map((c) => (
-                <Chip key={c.id} label={c.name} active={companyIds.includes(c.id)} onClick={() => toggleCompany(c.id)} />
-              ))}
-            </div>
-          </div>
-        ) : null}
-
         <Button onClick={save} disabled={busy} className="w-full">
           Save changes
         </Button>
 
-        <div>
-          <Label>Track any other company</Label>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Type any name — private to you, saved right away (no need to hit Save changes above).
-          </p>
-          <form
-            className="mt-2 flex gap-2"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (customName.trim()) addCustomMutation.mutate(customName);
-            }}
-          >
-            <Input
-              value={customName}
-              onChange={(e) => setCustomName(e.target.value)}
-              placeholder="Type any company name"
-              aria-label="Track a company by name"
-            />
-            <Button type="submit" disabled={addCustomMutation.isPending || customName.trim().length === 0}>
-              Track
-            </Button>
-          </form>
-          {customQuery.data?.length ? (
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {customQuery.data.map((c) => (
-                <span
-                  key={c.id}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground"
-                >
-                  {c.name}
-                  <button
-                    type="button"
-                    aria-label={`Stop tracking ${c.name}`}
-                    onClick={() => removeCustomMutation.mutate(c.id)}
-                    className="text-muted-foreground transition-colors hover:text-foreground"
-                  >
-                    <X className="h-3 w-3" aria-hidden="true" />
-                  </button>
-                </span>
-              ))}
-            </div>
-          ) : null}
-        </div>
+        <Link
+          to="/companies"
+          className="flex items-center justify-between rounded-2xl border border-border bg-card p-4 transition-colors hover:border-primary/40"
+        >
+          <span className="flex items-center gap-2 text-sm font-medium">
+            <Building2 className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+            Companies you track
+          </span>
+          <ChevronRight className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+        </Link>
       </div>
 
       <Button
